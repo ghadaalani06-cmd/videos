@@ -151,17 +151,36 @@
                 <option value="warm">Warm tone</option>
               </select>
             </div>
-            <div class="field">
-              <label for="backgroundMode">Background</label>
-              <select id="backgroundMode">
+            <div class="background-picker" aria-labelledby="backgroundTitle">
+              <div class="background-heading">
+                <span id="backgroundTitle">Choose a background</span>
+                <span class="background-tag">LIVE CAMERA</span>
+              </div>
+              <select id="backgroundMode" class="visually-hidden" aria-label="Background mode">
                 <option value="none">Original</option>
-                <option value="blur">Blur background</option>
+                <option value="blur">Blur</option>
                 <option value="office">Office</option>
                 <option value="studio">Studio</option>
                 <option value="beach">Beach</option>
+                <option value="city">City</option>
+                <option value="forest">Nature</option>
+                <option value="gradient">Gradient</option>
                 <option value="color">Solid color</option>
-                <option value="image">Upload image…</option>
+                <option value="image">Custom image</option>
               </select>
+              <div class="background-grid" id="backgroundGrid">
+                <button type="button" class="bg-choice selected" data-bg="none" aria-pressed="true"><span class="bg-thumb bg-original"><i>◉</i></span><span>Original</span></button>
+                <button type="button" class="bg-choice" data-bg="blur" aria-pressed="false"><span class="bg-thumb bg-blur"><i>〰</i></span><span>Blur</span></button>
+                <button type="button" class="bg-choice" data-bg="office" aria-pressed="false"><span class="bg-thumb bg-office"><i>▥</i></span><span>Office</span></button>
+                <button type="button" class="bg-choice" data-bg="studio" aria-pressed="false"><span class="bg-thumb bg-studio"><i>✦</i></span><span>Studio</span></button>
+                <button type="button" class="bg-choice" data-bg="beach" aria-pressed="false"><span class="bg-thumb bg-beach"><i>☼</i></span><span>Beach</span></button>
+                <button type="button" class="bg-choice" data-bg="city" aria-pressed="false"><span class="bg-thumb bg-city"><i>▤</i></span><span>City</span></button>
+                <button type="button" class="bg-choice" data-bg="forest" aria-pressed="false"><span class="bg-thumb bg-forest"><i>♧</i></span><span>Nature</span></button>
+                <button type="button" class="bg-choice" data-bg="gradient" aria-pressed="false"><span class="bg-thumb bg-gradient"><i>◌</i></span><span>Gradient</span></button>
+                <button type="button" class="bg-choice" data-bg="color" aria-pressed="false"><span class="bg-thumb bg-color"><i>＋</i></span><span>Color</span></button>
+                <button type="button" class="bg-choice" data-bg="image" aria-pressed="false"><span class="bg-thumb bg-upload"><i>＋</i></span><span>Upload</span></button>
+              </div>
+              <p class="hint">Select a scene for your camera. Effects are applied to the recorded video.</p>
             </div>
             <div class="field" id="bgColorField" hidden><label for="bgColor">Background color</label><input id="bgColor" type="color" value="#24364b"></div>
             <div class="field" id="bgImageField" hidden><label for="bgImage">Your image</label><input id="bgImage" type="file" accept="image/*"></div>

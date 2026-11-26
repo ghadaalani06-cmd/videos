@@ -247,3 +247,28 @@ input[type="color"]{width:100%;height:40px;padding:3px;border:1px solid var(--ed
 input[type="file"]{min-width:0;color:var(--mist);font:inherit}
 .language-switch{position:fixed;right:18px;top:16px;z-index:20;background:var(--signal);color:white;border:0;border-radius:999px;padding:9px 14px;font:inherit;font-weight:700;cursor:pointer;box-shadow:0 5px 20px #0005}
 [dir="rtl"]{text-align:right}[dir="rtl"] .top{direction:rtl}[dir="rtl"] .field{grid-template-columns:minmax(0,1fr) 1.3fr}[dir="rtl"] .switch{flex-direction:row-reverse}[dir="rtl"] .language-switch{right:auto;left:18px}
+
+
+/* Background picker refresh */
+.background-picker{display:grid;gap:11px;padding:13px;background:linear-gradient(145deg,rgba(124,92,255,.12),rgba(255,255,255,.025));border:1px solid var(--edge);border-radius:13px;min-width:0}
+.background-heading{display:flex;align-items:center;justify-content:space-between;gap:8px;font-weight:750;font-size:.92rem}
+.background-tag{font-size:.62rem;letter-spacing:.08em;color:#a594ff;border:1px solid #5945a5;border-radius:999px;padding:4px 7px;white-space:nowrap}
+.background-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:9px}
+.bg-choice{display:grid;gap:6px;min-width:0;padding:5px 5px 7px;background:transparent;border:1px solid transparent;border-radius:10px;color:var(--mist);font-size:.76rem;font-weight:650}
+.bg-choice:hover{background:rgba(255,255,255,.045);border-color:var(--edge)}
+.bg-choice.selected{background:rgba(124,92,255,.15);border-color:var(--signal);color:var(--ink);box-shadow:0 0 0 1px rgba(124,92,255,.15)}
+.bg-thumb{display:grid;place-items:center;width:100%;aspect-ratio:16/9;border-radius:7px;overflow:hidden;border:1px solid rgba(255,255,255,.16);color:white;font-size:1.45rem;text-shadow:0 2px 8px #0008}
+.bg-original{background:linear-gradient(135deg,#3c5266,#9aa8ad 50%,#33434e)}
+.bg-blur{background:linear-gradient(135deg,#8d9eaa,#c5b8a2 45%,#596f81);filter:blur(.2px)}
+.bg-office{background:linear-gradient(90deg,#8fa7b8 0 28%,#d7e0e6 28% 34%,#526b80 34% 65%,#b8c8d2 65%)}
+.bg-studio{background:radial-gradient(ellipse at 50% 25%,#8994b3,#303957 55%,#151b32)}
+.bg-beach{background:linear-gradient(#64b9dc 0 48%,#f1d59b 49% 58%,#b68b5c 59%)}
+.bg-city{background:linear-gradient(90deg,#a9c6d9 0 15%,#536a82 15% 30%,#d7e4e9 30% 42%,#657f98 42% 67%,#b9d2df 67%)}
+.bg-forest{background:linear-gradient(145deg,#a9c9ad,#3c7656 55%,#173f35)}
+.bg-gradient{background:linear-gradient(125deg,#302b63,#6b5b95,#c06c84)}
+.bg-color{background:conic-gradient(#e76f51,#f4a261,#e9c46a,#2a9d8f,#457b9d,#7b2cbf,#e76f51)}
+.bg-upload{background:repeating-linear-gradient(135deg,#27304e 0 8px,#343e62 8px 16px)}
+.visually-hidden{position:absolute!important;width:1px!important;height:1px!important;padding:0!important;margin:-1px!important;overflow:hidden!important;clip:rect(0,0,0,0)!important;white-space:nowrap!important;border:0!important}
+[dir=rtl] .background-heading{flex-direction:row-reverse}
+[dir=rtl] .background-grid{direction:rtl}
+@media(max-width:420px){.background-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.field{grid-template-columns:1fr}.field label{margin-bottom:-3px}}

@@ -47,7 +47,7 @@ let selfieSegmentation = null, latestMask = null, bgBitmap = null, bgImageUrl = 
   }
   if (!el.format.options.length) say('This browser cannot record video.', true);
   if (!window.showSaveFilePicker) el.diskGroup.hidden = true;
-  if (el.backgroundMode) { el.backgroundMode.addEventListener('change', updateBackgroundFields); el.bgImage.addEventListener('change', loadBackgroundImage); updateBackgroundFields(); }
+  if (el.backgroundMode) { el.backgroundMode.addEventListener('change', updateBackgroundFields); el.bgImage.addEventListener('change', loadBackgroundImage); $('backgroundGrid')?.addEventListener('click', onBackgroundChoice); updateBackgroundFields(); }
 })();
 
 function say(text, isError = false) {
@@ -435,12 +435,25 @@ function drawContain(v, x, y, w, h) {
   ctx2d.drawImage(v, x + (w - dw) / 2, y + (h - dh) / 2, dw, dh);
 }
 
+function onBackgroundChoice(event) {
+  const choice = event.target.closest('[data-bg]');
+  if (!choice) return;
+  const mode = choice.dataset.bg;
+  el.backgroundMode.value = mode;
+  updateBackgroundFields();
+  if (mode === 'image') el.bgImage.click();
+}
 function updateBackgroundFields() {
   if (!el.backgroundMode) return;
   el.bgColorField.hidden = el.backgroundMode.value !== 'color';
   el.bgImageField.hidden = el.backgroundMode.value !== 'image';
+  document.querySelectorAll('.bg-choice').forEach((button) => {
+    const active = button.dataset.bg === el.backgroundMode.value;
+    button.classList.toggle('selected', active);
+    button.setAttribute('aria-pressed', String(active));
+  });
   const needsSeg = el.backgroundMode.value !== 'none';
-  el.bgHint.textContent = needsSeg ? 'Person-aware background effects run locally in your browser. The first use downloads the segmentation model.' : 'Your original camera background will be kept.';
+  el.bgHint.textContent = needsSeg ? (window.AppI18n?.t('Person-aware background effects run locally in your browser. The first use downloads the segmentation model.') || 'Person-aware background effects run locally in your browser. The first use downloads the segmentation model.') : (window.AppI18n?.t('Your original camera background will be kept.') || 'Your original camera background will be kept.');
 }
 async function loadBackgroundImage() {
   const file = el.bgImage.files && el.bgImage.files[0]; if (!file) return;
@@ -467,6 +480,9 @@ function drawSegmentedCamera(x, y, w, h, mirror) {
   else if (mode==='office') { bctx.fillStyle='#d7e1e8';bctx.fillRect(0,0,pw,ph);bctx.fillStyle='#b2c4d2';bctx.fillRect(pw*.08,ph*.12,pw*.34,ph*.48);bctx.fillStyle='#71899b';bctx.fillRect(pw*.1,ph*.14,pw*.30,ph*.43);bctx.fillStyle='#8b9eaa';bctx.fillRect(pw*.55,ph*.16,pw*.34,ph*.84); }
   else if (mode==='studio') { bctx.fillStyle='#202b43';bctx.fillRect(0,0,pw,ph);const g=bctx.createRadialGradient(pw*.5,ph*.35,20,pw*.5,ph*.35,pw*.7);g.addColorStop(0,'#66758f');g.addColorStop(1,'#111827');bctx.fillStyle=g;bctx.fillRect(0,0,pw,ph); }
   else if (mode==='beach') { const g=bctx.createLinearGradient(0,0,0,ph);g.addColorStop(0,'#54b7df');g.addColorStop(.58,'#d2e8dc');g.addColorStop(.59,'#e6c58d');g.addColorStop(1,'#b98d5a');bctx.fillStyle=g;bctx.fillRect(0,0,pw,ph);bctx.fillStyle='#fff3';bctx.beginPath();bctx.arc(pw*.78,ph*.2,ph*.1,0,Math.PI*2);bctx.fill(); }
+  else if (mode==='city') { bctx.fillStyle='#b9d4e8';bctx.fillRect(0,0,pw,ph);bctx.fillStyle='#52677e';[[.04,.35,.18,.65],[.27,.2,.2,.8],[.53,.3,.16,.7],[.74,.12,.22,.88]].forEach(([x,y,w,h])=>{bctx.fillRect(pw*x,ph*y,pw*w,ph*h);bctx.fillStyle='#d8e6ef';for(let yy=ph*(y+.08);yy<ph*(y+h-.04);yy+=ph*.13)for(let xx=pw*(x+.04);xx<pw*(x+w-.03);xx+=pw*.07)bctx.fillRect(xx,yy,pw*.025,ph*.045);bctx.fillStyle='#52677e';}); }
+  else if (mode==='forest') { const g=bctx.createLinearGradient(0,0,0,ph);g.addColorStop(0,'#a7c9b3');g.addColorStop(1,'#173f35');bctx.fillStyle=g;bctx.fillRect(0,0,pw,ph);for(let i=0;i<12;i++){const tx=pw*(i/11),r=pw*(.09+(i%3)*.025);bctx.fillStyle=i%2?'#285b45':'#397451';bctx.beginPath();bctx.moveTo(tx,ph*.12);bctx.lineTo(tx-r,ph*.72);bctx.lineTo(tx+r,ph*.72);bctx.closePath();bctx.fill();bctx.fillStyle='#765b3d';bctx.fillRect(tx-pw*.012,ph*.68,pw*.024,ph*.32);} }
+  else if (mode==='gradient') { const g=bctx.createLinearGradient(0,0,pw,ph);g.addColorStop(0,'#302b63');g.addColorStop(.5,'#6b5b95');g.addColorStop(1,'#c06c84');bctx.fillStyle=g;bctx.fillRect(0,0,pw,ph); }
   else if (mode==='color') { bctx.fillStyle=el.bgColor.value;bctx.fillRect(0,0,pw,ph); }
   else { bctx.drawImage(camVideo,0,0,pw,ph); }
   bctx.restore();
