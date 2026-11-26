@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Video Editor</title>
+  <link rel="stylesheet" href="recorder.css">
+  <link rel="stylesheet" href="editor.css">
+</head>
+<body>
+  <header class="top">
+    <span class="tally" aria-hidden="true"></span>
+    <h1>Video Editor</h1>
+    <p>Trim, cut, crop, speed up and add text. Free, offline, no watermark.</p>
+    <a class="nav" href="index.html">Back to recorder</a>
+  </header>
+
+  <main class="layout">
+    <section class="stage" aria-label="Preview and timeline">
+      <div class="screen has-canvas" id="screen">
+        <canvas id="view" width="960" height="540"></canvas>
+        <div class="empty" id="empty">
+          <p class="empty-title">No video loaded</p>
+          <p>Drop a video here, or</p>
+          <button class="ghost open" id="openBtn" type="button">Open a video file</button>
+        </div>
+      </div>
+      <input type="file" id="fileInput" accept="video/*" hidden>
+
+      <div class="transport">
+        <button class="tool play" id="playBtn" type="button" disabled>Play</button>
+        <div class="clock"><span id="curTime">00:00.0</span><span class="of"> of </span><span id="totTime">00:00.0</span></div>
+        <div class="spacer"></div>
+        <button class="tool" id="undoBtn" type="button" disabled>Undo</button>
+        <button class="tool" id="resetBtn" type="button" disabled>Reset cuts</button>
+      </div>
+
+      <div class="timeline" id="tl" aria-label="Timeline"></div>
+      <div class="tl-tools">
+        <button class="tool" id="splitBtn" type="button" disabled>Split at playhead</button>
+        <button class="tool danger" id="delBtn" type="button" disabled>Delete selected part</button>
+        <p class="hint">Click a part to select it, then drag its white edges to trim. Shortcuts: Space play, S split, Delete remove, Ctrl+Z undo.</p>
+      </div>
+    </section>
+
+    <aside class="panel" aria-label="Editor controls">
+      <div class="actions">
+        <button class="primary" id="exportBtn" type="button" disabled>Export video</button>
+        <button class="secondary" id="cancelBtn" type="button" hidden>Cancel export</button>
+        <div class="progress" id="progress" hidden><div class="progress-bar" id="progBar"></div></div>
+        <p class="msg" id="msg" role="status"></p>
+        <div class="result" id="result" hidden>
+          <h2>Edited video ready</h2>
+          <a class="primary link" id="download" download>Download video</a>
+        </div>
+      </div>
+
+      <div class="settings" id="settings">
+        <section class="sec">
+          <h2>Clip</h2>
+          <div class="field">
+            <label for="speed">Speed</label>
+            <select id="speed">
+              <option value="0.25">0.25x</option>
+              <option value="0.5">0.5x</option>
+              <option value="0.75">0.75x</option>
+              <option value="1" selected>1x (normal)</option>
+              <option value="1.25">1.25x</option>
+              <option value="1.5">1.5x</option>
+              <option value="2">2x</option>
+              <option value="3">3x</option>
+              <option value="4">4x</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="volume">Volume <span id="volLabel">100%</span></label>
+            <input type="range" id="volume" min="0" max="200" value="100">
+          </div>
+        </section>
+
+        <section class="sec">
+          <h2>Frame</h2>
+          <div class="field">
+            <label for="aspect">Shape</label>
+            <select id="aspect">
+              <option value="orig" selected>Original</option>
+              <option value="16:9">Wide 16:9</option>
+              <option value="1:1">Square 1:1</option>
+              <option value="9:16">Vertical 9:16</option>
+              <option value="4:5">Portrait 4:5</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="zoom">Zoom <span id="zoomLabel">100%</span></label>
+            <input type="range" id="zoom" min="100" max="300" value="100">
+          </div>
+          <div class="field">
+            <label for="panX">Move left/right</label>
+            <input type="range" id="panX" min="-100" max="100" value="0">
+          </div>
+          <div class="field">
+            <label for="panY">Move up/down</label>
+            <input type="range" id="panY" min="-100" max="100" value="0">
+          </div>
+        </section>
+
+        <section class="sec">
+          <h2>Text</h2>
+          <button class="ghost" id="addText" type="button" disabled>Add text at playhead</button>
+          <div class="texts" id="textList"></div>
+        </section>
+
+        <section class="sec">
+          <h2>Export</h2>
+          <div class="field">
+            <label for="res">Resolution</label>
+            <select id="res">
+              <option value="orig" selected>Same as original</option>
+              <option value="1080">Up to 1080p</option>
+              <option value="720">Up to 720p</option>
+              <option value="480">Up to 480p</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="format">Format</label>
+            <select id="format"></select>
+          </div>
+          <p class="hint">Exporting plays your edit in real time, so a 10-minute edit takes about 10 minutes. Keep this tab open while it runs.</p>
+        </section>
+      </div>
+    </aside>
+  </main>
+
+  <script src="clipstore.js"></script>
+  <script src="editor.js"></script>
+</body>
+</html>

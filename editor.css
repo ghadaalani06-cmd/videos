@@ -1,0 +1,69 @@
+/* Editor-only styles (shares tokens and base look with recorder.css) */
+input[type="range"] { width: 100%; accent-color: var(--signal); margin: 0; }
+.field label span { color: var(--ink); font-weight: 700; }
+.field { grid-template-columns: 112px minmax(0, 1fr); }
+
+.empty .open { width: auto; margin: 10px auto 0; padding: 10px 20px; }
+.screen.drag { border-color: var(--signal); box-shadow: 0 0 0 2px var(--signal); }
+body.recording .screen { border-color: var(--tally); }
+
+button.tool {
+  width: auto; padding: 9px 16px; border-radius: 10px; font-size: .92rem;
+  background: var(--deck); color: var(--ink); border-color: var(--edge);
+}
+button.tool:hover:not(:disabled) { background: var(--edge); }
+button.tool.play { min-width: 84px; background: var(--ink); color: var(--midnight); }
+button.tool.play:hover:not(:disabled) { background: #fff; }
+button.tool.danger { color: #ff8aa0; }
+
+.transport { display: flex; align-items: center; gap: 12px; margin-top: 14px; flex-wrap: wrap; }
+.transport .spacer { flex: 1; }
+.clock { font-family: var(--mono); font-size: 1.25rem; font-variant-numeric: tabular-nums; }
+.clock .of { color: var(--mist); font-size: .9rem; font-family: var(--body); }
+
+.timeline {
+  position: relative; height: 68px; margin: 22px 8px 0;
+  background: repeating-linear-gradient(135deg, #14173a 0 8px, #191d44 8px 16px);
+  border: 1px solid var(--edge); border-radius: 12px;
+  touch-action: none; user-select: none; cursor: pointer;
+}
+.seg {
+  position: absolute; top: 7px; bottom: 7px; min-width: 4px;
+  background: #4c3bb8; border: 2px solid transparent; border-radius: 9px;
+  color: #d9d2ff; font-size: .75rem; font-weight: 700; padding: 3px 7px; overflow: hidden; white-space: nowrap;
+}
+.seg.sel { background: var(--signal); border-color: #fff; color: #fff; overflow: visible; }
+.handle {
+  position: absolute; top: -7px; bottom: -7px; width: 12px;
+  background: #fff; border-radius: 6px; cursor: ew-resize; z-index: 3;
+}
+.handle.l { left: -8px; }
+.handle.r { right: -8px; }
+.playhead {
+  position: absolute; top: -10px; bottom: -10px; width: 2px; margin-left: -1px;
+  background: var(--tally); z-index: 4; pointer-events: none;
+}
+.playhead::before {
+  content: ""; position: absolute; top: -2px; left: -5px; width: 12px; height: 12px;
+  border-radius: 50%; background: var(--tally);
+}
+.tl-tools { display: flex; gap: 10px; flex-wrap: wrap; align-items: center; margin-top: 16px; }
+.tl-tools .hint { flex-basis: 100%; }
+
+.progress { height: 10px; background: var(--edge); border-radius: 999px; overflow: hidden; }
+.progress-bar { height: 100%; width: 0; background: var(--tally); transition: width .2s linear; }
+
+.texts { display: grid; gap: 10px; }
+.text-item {
+  display: grid; gap: 8px; padding: 12px;
+  background: rgba(255,255,255,.03); border: 1px solid var(--edge); border-radius: 10px;
+}
+.text-item textarea, .text-item input[type="number"] {
+  width: 100%; font: inherit; color: var(--ink); background: var(--midnight);
+  border: 1px solid var(--edge); border-radius: 8px; padding: 8px 10px;
+}
+.text-item textarea { resize: vertical; min-height: 54px; }
+.text-item .two { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.text-item label { font-size: .8rem; color: var(--mist); display: grid; gap: 3px; }
+.text-item input[type="color"] { width: 100%; height: 34px; border: 1px solid var(--edge); border-radius: 8px; background: var(--midnight); padding: 2px; }
+.text-item .rm { padding: 7px 12px; font-size: .85rem; color: #ff8aa0; background: transparent; border-color: var(--edge); }

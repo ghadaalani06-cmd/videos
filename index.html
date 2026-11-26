@@ -1,0 +1,181 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Screen Recorder</title>
+  <link rel="stylesheet" href="recorder.css">
+</head>
+<body>
+  <header class="top">
+    <span class="tally" aria-hidden="true"></span>
+    <h1>Screen Recorder</h1>
+    <p>Free. No watermark. No time limit.</p>
+    <nav class="navlinks"><a class="nav" href="meet.html" target="_blank" rel="noopener">Start / join meeting</a><a class="nav" href="editor.html" target="_blank" rel="noopener">Video editor</a></nav>
+  </header>
+
+  <main class="layout">
+    <section class="stage" aria-label="Preview">
+      <div class="screen" id="screen">
+        <video id="preview" muted playsinline></video>
+        <canvas id="composite"></canvas>
+        <div class="empty" id="empty">
+          <p class="empty-title">No signal</p>
+          <p>Press <strong>Start recording</strong> and pick what to capture.</p>
+        </div>
+        <div class="badge" id="badge" hidden><span class="dot"></span><span id="badgeText">REC</span></div>
+      </div>
+      <div class="readout">
+        <div class="time" id="time">00:00:00</div>
+        <div class="size" id="size">0 MB</div>
+      </div>
+    </section>
+
+    <aside class="panel" aria-label="Recorder controls">
+      <div class="actions">
+        <button class="primary" id="start" type="button">Start recording</button>
+        <div class="row" id="live" hidden>
+          <button class="secondary" id="pause" type="button">Pause</button>
+          <button class="stop" id="stop" type="button">Stop and save</button>
+        </div>
+        <button class="ghost" id="floatBtn" type="button" hidden>Floating controls (stay on top)</button>
+        <p class="msg" id="msg" role="status"></p>
+        <div class="result" id="result" hidden>
+          <h2>Recording ready</h2>
+          <a class="primary link" id="download" download>Download recording</a>
+          <button class="secondary" id="editBtn" type="button">Edit this recording</button>
+          <button class="ghost" id="discard" type="button">Discard and record again</button>
+        </div>
+      </div>
+
+      <div class="settings" id="settings">
+        <section class="sec">
+          <h2>Screen</h2>
+          <div class="field">
+            <label for="source">Record</label>
+            <select id="source">
+              <option value="monitor" selected>Entire screen (any app)</option>
+              <option value="window">One app window (e.g. VS Code)</option>
+              <option value="browser">A Chrome tab</option>
+              <option value="">Let me choose</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="quality">Quality</label>
+            <select id="quality">
+              <option value="720">720p</option>
+              <option value="1080" selected>1080p</option>
+              <option value="1440">1440p</option>
+              <option value="2160">4K</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="fps">Frame rate</label>
+            <select id="fps">
+              <option value="15">15 fps</option>
+              <option value="30" selected>30 fps</option>
+              <option value="60">60 fps</option>
+            </select>
+          </div>
+          <div class="field">
+            <label for="format">Format</label>
+            <select id="format"></select>
+          </div>
+        </section>
+
+        <section class="sec">
+          <h2>Sound</h2>
+          <label class="switch">
+            <input type="checkbox" id="sysAudio" checked>
+            <span>Computer / tab audio</span>
+          </label>
+          <label class="switch">
+            <input type="checkbox" id="mic">
+            <span>Microphone</span>
+          </label>
+          <div class="sub" id="micOptions" hidden>
+            <div class="field">
+              <label for="isolation">Voice isolation</label>
+              <select id="isolation">
+                <option value="strong" selected>Strong – voice only</option>
+                <option value="standard">Standard – reduce noise</option>
+                <option value="off">Off – raw microphone</option>
+              </select>
+            </div>
+            <p class="hint">Strong removes keyboard clicks, fans and room noise. If your voice sounds cut off, choose Standard.</p>
+            <div class="meter" id="meterWrap" hidden aria-label="Microphone level">
+              <span class="meter-label">Mic level</span>
+              <div class="meter-track"><div class="meter-bar" id="meterBar"></div></div>
+            </div>
+          </div>
+        </section>
+
+        <section class="sec">
+          <h2>Camera</h2>
+          <label class="switch">
+            <input type="checkbox" id="camera">
+            <span>Show my face</span>
+          </label>
+          <div class="sub" id="camOptions" hidden>
+            <div class="field">
+              <label for="layout">Layout</label>
+              <select id="layout">
+                <option value="small" selected>Small bubble</option>
+                <option value="big">Big bubble</option>
+                <option value="side">Side by side</option>
+                <option value="camera">Camera only (full)</option>
+              </select>
+            </div>
+            <div class="field" id="posField">
+              <label for="position">Position</label>
+              <select id="position">
+                <option value="br" selected>Bottom right</option>
+                <option value="bl">Bottom left</option>
+                <option value="tr">Top right</option>
+                <option value="tl">Top left</option>
+              </select>
+            </div>
+            <div class="field" id="shapeField">
+              <label for="shape">Shape</label>
+              <select id="shape">
+                <option value="circle" selected>Circle</option>
+                <option value="rounded">Rounded square</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="cameraLook">Camera look</label>
+              <select id="cameraLook">
+                <option value="none">Natural</option>
+                <option value="soft">Soft focus</option>
+                <option value="mono">Black &amp; white</option>
+                <option value="warm">Warm tone</option>
+              </select>
+            </div>
+            <p class="hint">These are camera-wide visual looks. True background replacement needs person segmentation and is planned for the next stage.</p>
+            <label class="switch">
+              <input type="checkbox" id="mirror" checked>
+              <span>Mirror my camera</span>
+            </label>
+            <p class="hint">Layout, position and shape can be changed while recording.</p>
+          </div>
+        </section>
+
+        <section class="sec">
+          <h2>Saving</h2>
+          <label class="switch">
+            <input type="checkbox" id="countdown" checked>
+            <span>3-second countdown</span>
+          </label>
+          <div id="diskGroup" class="disk">
+            <button class="ghost" id="pickFile" type="button">Save straight to a file</button>
+            <p class="hint" id="diskHint">Best for very long recordings. Video is written to disk as you record, so memory never fills up.</p>
+          </div>
+        </section>
+      </div>
+    </aside>
+  </main>
+
+  <script src="clipstore.js"></script>
+  <script src="recorder.js"></script>
+</body>
+</html>

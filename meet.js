@@ -1,0 +1,8 @@
+const roomInput=document.getElementById('room');const statusEl=document.getElementById('status');const copyBtn=document.getElementById('copy');
+function roomName(){return 'screenrec-'+Array.from(crypto.getRandomValues(new Uint8Array(8)),b=>b.toString(16).padStart(2,'0')).join('');}
+function normalizeRoom(value){let v=value.trim();if(!v)return '';try{const u=new URL(v);if(u.hostname.endsWith('jitsi.meet')||u.hostname==='meet.jit.si'){return u.pathname.split('/').filter(Boolean)[0]||'';}if(u.hostname==='meet.jit.si')return u.pathname.split('/').filter(Boolean)[0]||'';}catch(_){}return v.replace(/[^a-zA-Z0-9_-]/g,'');}
+function invite(room){return 'https://meet.jit.si/'+encodeURIComponent(room);}
+document.getElementById('create').addEventListener('click',()=>{const room=roomName();roomInput.value=room;copyBtn.disabled=false;statusEl.textContent='Your meeting room is ready. Copy the invite link and share it.';window.open(invite(room),'_blank','noopener');});
+document.getElementById('join').addEventListener('click',()=>{const room=normalizeRoom(roomInput.value);if(!room){statusEl.textContent='Enter a room name or meeting link first.';return;}roomInput.value=room;copyBtn.disabled=false;window.open(invite(room),'_blank','noopener');});
+copyBtn.addEventListener('click',async()=>{const room=normalizeRoom(roomInput.value);if(!room)return;try{await navigator.clipboard.writeText(invite(room));statusEl.textContent='Invite link copied.';}catch(_){statusEl.textContent=invite(room);}});
+roomInput.addEventListener('input',()=>{copyBtn.disabled=!normalizeRoom(roomInput.value);});
