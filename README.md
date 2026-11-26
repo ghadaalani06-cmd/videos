@@ -1,17 +1,47 @@
-# Screen Recorder – web app
-Plain static files. No build step and no server code.
+# Free Screen & Video Recorder (fixed meetings)
 
-## Try it on your computer
-    python3 -m http.server 8080
-then open http://localhost:8080 in Chrome or Edge.
-(Screen, camera and microphone capture need HTTPS or localhost.)
+Version 1.7.0 — Meetings now use **self-hosted WebRTC** instead of Jitsi.
 
-## Put it online (free)
-- Vercel / Netlify / Cloudflare Pages: drag this folder into the dashboard, or connect a GitHub repo. Output folder: the root. No build command.
-- GitHub Pages: upload the files to a repo and enable Pages.
-Once online over HTTPS, Chrome and Edge show an "Install app" button, and it works offline.
+## What's fixed
 
-# تطبيق ويب – مسجّل الشاشة
-ملفات ثابتة فقط، بدون بناء أو خادم.
-للتجربة محليًا: شغّل python3 -m http.server 8080 ثم افتح http://localhost:8080 في Chrome أو Edge.
-للنشر المجاني: اسحب المجلد إلى Vercel أو Netlify أو Cloudflare Pages. يجب أن يكون الموقع على HTTPS ليعمل تسجيل الشاشة والكاميرا والميكروفون.
+- Real multi-user video meetings (camera + screen share)
+- Short room codes
+- Local recording of the meeting (no cloud, no watermark)
+- Configurable signaling server URL (works with any host)
+- Same polished UI as the recorder / editor
+
+## How to use meetings
+
+1. **Start the signaling server** (one time):
+
+```bash
+cd server
+npm install
+node index.js
+# runs on http://localhost:3001
+```
+
+For production, deploy `server/` to Railway, Render, Fly.io or a VPS (needs persistent WebSockets + HTTPS).
+
+2. Load the extension:
+   - `chrome://extensions` → Developer mode → Load unpacked → select this folder
+
+3. Open the extension → click **Start / join meeting**
+4. Paste your signaling server URL → Save
+5. Create a room (or join with a code)
+
+## Files
+
+| File | Purpose |
+|------|---------|
+| `recorder.html` + `recorder.js` | Screen / camera recorder |
+| `editor.html` + `editor.js` | Built-in video editor |
+| `meet.html` + `meet.js` | **Self-hosted WebRTC meetings** |
+| `server/` | Signaling server (Socket.IO) |
+| `background.js` | Opens the recorder tab + REC badge |
+
+## Notes
+
+- Media is peer-to-peer. Only signaling goes through your server.
+- For users behind strict NATs, add a TURN server to the ICE config in `meet.js`.
+- The extension works fully offline for recording & editing. Meetings need the signaling server.
