@@ -1,0 +1,20 @@
+{
+  "name": "Screen Recorder – Record, Meet, Edit",
+  "short_name": "Recorder",
+  "description": "Free screen, camera and meeting recorder with live Arabic/English transcripts and a video editor. No watermark, no time limit.",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#0f1226",
+  "theme_color": "#0f1226",
+  "lang": "en",
+  "icons": [
+    { "src": "icons/icon192.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "icons/icon512.png", "sizes": "512x512", "type": "image/png", "purpose": "any" }
+  ],
+  "shortcuts": [
+    { "name": "Record screen", "url": "recorder.html" },
+    { "name": "Record a meeting", "url": "recorder.html?mode=meeting" },
+    { "name": "Edit a video", "url": "editor.html" }
+  ]
+}
