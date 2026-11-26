@@ -151,7 +151,21 @@
                 <option value="warm">Warm tone</option>
               </select>
             </div>
-            <p class="hint">These are camera-wide visual looks. True background replacement needs person segmentation and is planned for the next stage.</p>
+            <div class="field">
+              <label for="backgroundMode">Background</label>
+              <select id="backgroundMode">
+                <option value="none">Original</option>
+                <option value="blur">Blur background</option>
+                <option value="office">Office</option>
+                <option value="studio">Studio</option>
+                <option value="beach">Beach</option>
+                <option value="color">Solid color</option>
+                <option value="image">Upload image…</option>
+              </select>
+            </div>
+            <div class="field" id="bgColorField" hidden><label for="bgColor">Background color</label><input id="bgColor" type="color" value="#24364b"></div>
+            <div class="field" id="bgImageField" hidden><label for="bgImage">Your image</label><input id="bgImage" type="file" accept="image/*"></div>
+            <p class="hint" id="bgHint">Background effects use on-device person segmentation. First use may download the model from MediaPipe.</p>
             <label class="switch">
               <input type="checkbox" id="mirror" checked>
               <span>Mirror my camera</span>
@@ -175,6 +189,8 @@
     </aside>
   </main>
 
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation/selfie_segmentation.js" crossorigin="anonymous"></script>
+  <script src="i18n.js"></script>
   <script src="clipstore.js"></script>
   <script src="recorder.js"></script>
 </body>

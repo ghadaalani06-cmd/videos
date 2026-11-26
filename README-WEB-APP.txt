@@ -25,3 +25,9 @@ LiveKit deployment, authentication, privacy policy, and recording infrastructure
 DEPLOY
 Upload the contents of this folder to any static HTTPS host. Do not upload the extension manifest
 or service worker; they are not needed by the web app.
+
+BILINGUAL UI & CAMERA BACKGROUNDS
+- Use the language toggle at the top-right (العربية / English) to switch languages. Arabic mode uses right-to-left layout.
+- Camera background choices include original, blur, office, studio, beach, solid color, and a user-uploaded image.
+- Background replacement uses MediaPipe Selfie Segmentation in the browser. The model is loaded from jsDelivr on first use; internet access is required for that first load. Camera frames are processed locally and are not uploaded by this feature.
+- Background replacement applies to the camera layer in screen recordings when the camera overlay is enabled. It does not automatically change the backgrounds of third-party Jitsi meeting participants.

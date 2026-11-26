@@ -10,7 +10,7 @@ const el = {
   start: $('start'), live: $('live'), pause: $('pause'), stop: $('stop'),
   result: $('result'), download: $('download'), discard: $('discard'), settings: $('settings'),
   camera: $('camera'), camOptions: $('camOptions'), layout: $('layout'), position: $('position'),
-  shape: $('shape'), mirror: $('mirror'), cameraLook: $('cameraLook'), canvas: $('composite'),
+  shape: $('shape'), mirror: $('mirror'), cameraLook: $('cameraLook'), backgroundMode: $('backgroundMode'), bgColor: $('bgColor'), bgColorField: $('bgColorField'), bgImage: $('bgImage'), bgImageField: $('bgImageField'), bgHint: $('bgHint'), canvas: $('composite'),
   posField: $('posField'), shapeField: $('shapeField'),
   source: $('source'), floatBtn: $('floatBtn'),
   isolation: $('isolation'), micOptions: $('micOptions'), meterWrap: $('meterWrap'), meterBar: $('meterBar'),
@@ -31,6 +31,7 @@ let startedAt = 0, pausedTotal = 0, pausedAt = 0, timer = null, blobUrl = null, 
 let recording = false, paused = false;
 let camStream = null, camVideo = null, screenVideo = null, canvasStream = null, ctx2d = null;
 let compositing = false, timerWorker = null;
+let selfieSegmentation = null, latestMask = null, bgBitmap = null, bgImageUrl = null, personCanvas = null, personCtx = null, maskCanvas = null, maskCtx = null, segmentationBusy = false;
 
 // ---------- setup ----------
 (function init() {
@@ -46,6 +47,7 @@ let compositing = false, timerWorker = null;
   }
   if (!el.format.options.length) say('This browser cannot record video.', true);
   if (!window.showSaveFilePicker) el.diskGroup.hidden = true;
+  if (el.backgroundMode) { el.backgroundMode.addEventListener('change', updateBackgroundFields); el.bgImage.addEventListener('change', loadBackgroundImage); updateBackgroundFields(); }
 })();
 
 function say(text, isError = false) {
@@ -378,17 +380,36 @@ async function startCompositor() {
   el.canvas.height = H - (H % 2);
   ctx2d = el.canvas.getContext('2d', { alpha: false });
   canvasStream = el.canvas.captureStream(Number(el.fps.value));
-
+  personCanvas = document.createElement('canvas'); personCanvas.width = camVideo.videoWidth; personCanvas.height = camVideo.videoHeight;
+  personCtx = personCanvas.getContext('2d');
+  maskCanvas = document.createElement('canvas'); maskCanvas.width = camVideo.videoWidth; maskCanvas.height = camVideo.videoHeight;
+  maskCtx = maskCanvas.getContext('2d');
+  const needsMask = el.backgroundMode && el.backgroundMode.value !== 'none';
+  if (needsMask) {
+    if (!window.SelfieSegmentation) throw new Error('Background segmentation library did not load. Check your internet connection or choose Original background.');
+    selfieSegmentation = new SelfieSegmentation({ locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation/${file}` });
+    selfieSegmentation.setOptions({ modelSelection: 1, selfieMode: true });
+    selfieSegmentation.onResults((results) => { latestMask = results.segmentationMask; segmentationBusy = false; });
+  }
   compositing = true;
-  timerWorker = new Worker('timer-worker.js');
-  timerWorker.onmessage = drawFrame;
-  timerWorker.postMessage({ cmd: 'start', interval: Math.round(1000 / Number(el.fps.value)) });
-  drawFrame();
+  const frameDelay = Math.max(16, Math.round(1000 / Number(el.fps.value)));
+  const drawLoop = async () => {
+    if (!compositing) return;
+    if (selfieSegmentation && !segmentationBusy && camVideo.readyState >= 2) {
+      segmentationBusy = true;
+      try { await selfieSegmentation.send({ image: camVideo }); } catch (_) { segmentationBusy = false; }
+    }
+    drawFrame();
+    setTimeout(drawLoop, frameDelay);
+  };
+  drawLoop();
 }
 
 function stopCompositor() {
   compositing = false;
   if (timerWorker) { timerWorker.postMessage({ cmd: 'stop' }); timerWorker.terminate(); timerWorker = null; }
+  if (selfieSegmentation) { selfieSegmentation.close().catch(()=>{}); selfieSegmentation = null; }
+  latestMask = null; personCanvas = personCtx = maskCanvas = maskCtx = null; segmentationBusy = false;
   [camVideo, screenVideo].forEach((v) => { if (v) { v.srcObject = null; v.remove(); } });
   camVideo = screenVideo = null;
   if (camStream) { camStream.getTracks().forEach((t) => t.stop()); camStream = null; }
@@ -414,13 +435,55 @@ function drawContain(v, x, y, w, h) {
   ctx2d.drawImage(v, x + (w - dw) / 2, y + (h - dh) / 2, dw, dh);
 }
 
+function updateBackgroundFields() {
+  if (!el.backgroundMode) return;
+  el.bgColorField.hidden = el.backgroundMode.value !== 'color';
+  el.bgImageField.hidden = el.backgroundMode.value !== 'image';
+  const needsSeg = el.backgroundMode.value !== 'none';
+  el.bgHint.textContent = needsSeg ? 'Person-aware background effects run locally in your browser. The first use downloads the segmentation model.' : 'Your original camera background will be kept.';
+}
+async function loadBackgroundImage() {
+  const file = el.bgImage.files && el.bgImage.files[0]; if (!file) return;
+  if (bgImageUrl) URL.revokeObjectURL(bgImageUrl);
+  bgImageUrl = URL.createObjectURL(file);
+  const img = new Image(); img.src = bgImageUrl;
+  try { await img.decode(); bgBitmap = img; say('Custom background image loaded.'); }
+  catch (_) { say('Could not load that image.', true); }
+}
+function drawSegmentedCamera(x, y, w, h, mirror) {
+  if (!latestMask || !personCanvas || !personCtx || !maskCtx) { drawCameraCover(x,y,w,h,mirror); return; }
+  const mode = el.backgroundMode.value;
+  const pw = personCanvas.width, ph = personCanvas.height;
+  personCtx.clearRect(0,0,pw,ph); personCtx.drawImage(camVideo,0,0,pw,ph);
+  maskCtx.clearRect(0,0,pw,ph); maskCtx.drawImage(latestMask,0,0,pw,ph);
+  personCtx.globalCompositeOperation = 'destination-in'; personCtx.drawImage(maskCanvas,0,0); personCtx.globalCompositeOperation='source-over';
+  const bg = document.createElement('canvas');
+  // Reuse one small background canvas to avoid allocating a canvas per frame.
+  if (!drawSegmentedCamera.bgCanvas) { drawSegmentedCamera.bgCanvas=document.createElement('canvas'); drawSegmentedCamera.bgCtx=drawSegmentedCamera.bgCanvas.getContext('2d'); }
+  const bc=drawSegmentedCamera.bgCanvas; bc.width=pw; bc.height=ph; const bctx=drawSegmentedCamera.bgCtx;
+  bctx.save();
+  if (mode==='blur') { bctx.filter='blur(22px)'; bctx.drawImage(camVideo,-18,-18,pw+36,ph+36); }
+  else if (mode==='image' && bgBitmap) { bctx.drawImage(bgBitmap,0,0,pw,ph); }
+  else if (mode==='office') { bctx.fillStyle='#d7e1e8';bctx.fillRect(0,0,pw,ph);bctx.fillStyle='#b2c4d2';bctx.fillRect(pw*.08,ph*.12,pw*.34,ph*.48);bctx.fillStyle='#71899b';bctx.fillRect(pw*.1,ph*.14,pw*.30,ph*.43);bctx.fillStyle='#8b9eaa';bctx.fillRect(pw*.55,ph*.16,pw*.34,ph*.84); }
+  else if (mode==='studio') { bctx.fillStyle='#202b43';bctx.fillRect(0,0,pw,ph);const g=bctx.createRadialGradient(pw*.5,ph*.35,20,pw*.5,ph*.35,pw*.7);g.addColorStop(0,'#66758f');g.addColorStop(1,'#111827');bctx.fillStyle=g;bctx.fillRect(0,0,pw,ph); }
+  else if (mode==='beach') { const g=bctx.createLinearGradient(0,0,0,ph);g.addColorStop(0,'#54b7df');g.addColorStop(.58,'#d2e8dc');g.addColorStop(.59,'#e6c58d');g.addColorStop(1,'#b98d5a');bctx.fillStyle=g;bctx.fillRect(0,0,pw,ph);bctx.fillStyle='#fff3';bctx.beginPath();bctx.arc(pw*.78,ph*.2,ph*.1,0,Math.PI*2);bctx.fill(); }
+  else if (mode==='color') { bctx.fillStyle=el.bgColor.value;bctx.fillRect(0,0,pw,ph); }
+  else { bctx.drawImage(camVideo,0,0,pw,ph); }
+  bctx.restore();
+  ctx2d.save();
+  if (mirror) { ctx2d.translate(x+w,y);ctx2d.scale(-1,1);ctx2d.drawImage(bc,0,0,w,h);ctx2d.drawImage(personCanvas,0,0,w,h); }
+  else { ctx2d.drawImage(bc,x,y,w,h);ctx2d.drawImage(personCanvas,x,y,w,h); }
+  ctx2d.restore();
+}
+
 function drawCameraCover(x, y, w, h, mirror) {
   const look = el.cameraLook?.value || 'none';
   ctx2d.save();
   if (look === 'soft') ctx2d.filter = 'blur(1.2px)';
   else if (look === 'mono') ctx2d.filter = 'grayscale(1)';
   else if (look === 'warm') ctx2d.filter = 'sepia(.22) saturate(1.18)';
-  drawCover(camVideo, x, y, w, h, mirror);
+  if (el.backgroundMode && el.backgroundMode.value !== 'none') drawSegmentedCamera(x, y, w, h, mirror);
+  else drawCover(camVideo, x, y, w, h, mirror);
   ctx2d.restore();
 }
 
