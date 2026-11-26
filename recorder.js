@@ -64,7 +64,7 @@ function elapsed() {
   return (paused ? pausedAt : Date.now()) - startedAt - pausedTotal;
 }
 function notifyBackground() {
-  try { chrome.runtime.sendMessage({ type: 'recording-state', active: recording, paused }); } catch (_) {}
+  try { // no-op in web app } catch (_) {}
 }
 
 // ---------- save-to-disk (optional, for very long recordings) ----------
@@ -568,7 +568,7 @@ $('editBtn').addEventListener('click', async () => {
   if (!lastBlob) return;
   try {
     await ClipStore.put('latest', lastBlob);
-    window.open(chrome.runtime.getURL('editor.html?clip=latest'), '_blank');
+    window.open('editor.html?clip=latest', '_blank');
   } catch (e) {
     say('Could not open the editor: ' + e.message, true);
   }

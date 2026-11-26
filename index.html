@@ -1,128 +1,15 @@
-<!DOCTYPE html>
-<html lang="en" dir="ltr">
+<!doctype html>
+<html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Free Recorder — Screen • Camera • Meetings</title>
-  <link rel="stylesheet" href="styles.css" />
-  <script src="https://cdn.socket.io/4.8.0/socket.io.min.js"></script>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Free Screen Recorder</title>
+  <meta http-equiv="refresh" content="0; url=recorder.html">
+  <link rel="stylesheet" href="recorder.css">
 </head>
 <body>
-  <div id="app">
-    <!-- Header -->
-    <header class="header">
-      <div class="logo">
-        <span class="logo-icon">⏺</span>
-        <div>
-          <h1 data-i18n="appName">Free Recorder</h1>
-          <p class="tagline" data-i18n="tagline">Screen • Camera • Meetings — No watermark • No limits</p>
-        </div>
-      </div>
-      <div class="header-actions">
-        <div class="lang-switch">
-          <button id="btn-en" class="lang-btn active" onclick="setLanguage('en')">EN</button>
-          <button id="btn-ar" class="lang-btn" onclick="setLanguage('ar')">عر</button>
-        </div>
-      </div>
-    </header>
-
-    <!-- Main tabs -->
-    <nav class="tabs">
-      <button class="tab active" data-tab="record" data-i18n="record">Record</button>
-      <button class="tab" data-tab="meeting" data-i18n="createMeeting">Meeting</button>
-    </nav>
-
-    <!-- ========== RECORD TAB ========== -->
-    <section id="tab-record" class="tab-panel active">
-      <div class="card">
-        <h2 data-i18n="selectSource">Select what to record</h2>
-        <div class="source-grid">
-          <button class="source-btn" id="btn-screen" data-source="screen">
-            <span class="icon">🖥️</span>
-            <span data-i18n="screen">Screen</span>
-          </button>
-          <button class="source-btn" id="btn-camera" data-source="camera">
-            <span class="icon">📷</span>
-            <span data-i18n="camera">Camera</span>
-          </button>
-          <button class="source-btn" id="btn-both" data-source="both">
-            <span class="icon">🖥️+📷</span>
-            <span data-i18n="both">Screen + Camera</span>
-          </button>
-        </div>
-
-        <div class="options">
-          <label>
-            <input type="checkbox" id="opt-mic" checked />
-            <span data-i18n="mic">Microphone</span>
-          </label>
-        </div>
-
-        <div class="preview-area">
-          <video id="preview" autoplay muted playsinline></video>
-          <div id="preview-placeholder" class="placeholder" data-i18n="preview">Preview</div>
-        </div>
-
-        <div class="controls">
-          <button id="btn-start" class="btn primary" disabled data-i18n="startRecording">Start Recording</button>
-          <button id="btn-stop" class="btn danger hidden" data-i18n="stopRecording">Stop Recording</button>
-          <button id="btn-download" class="btn success hidden" data-i18n="download">Download</button>
-        </div>
-
-        <div class="status-bar">
-          <span id="rec-status" data-i18n="ready">Ready</span>
-          <span id="rec-timer" class="timer">00:00</span>
-        </div>
-      </div>
-    </section>
-
-    <!-- ========== MEETING TAB ========== -->
-    <section id="tab-meeting" class="tab-panel">
-      <div class="card">
-        <div id="meeting-lobby">
-          <h2 data-i18n="createMeeting">Create or Join Meeting</h2>
-          <div class="meeting-actions">
-            <button id="btn-create-room" class="btn primary" data-i18n="create">Create</button>
-            <div class="join-box">
-              <input type="text" id="join-code" placeholder="ABC123" maxlength="6" data-i18n-placeholder="enterCode" />
-              <button id="btn-join-room" class="btn" data-i18n="join">Join</button>
-            </div>
-          </div>
-          <p class="hint" id="server-status">Signaling: checking…</p>
-        </div>
-
-        <div id="meeting-room" class="hidden">
-          <div class="room-header">
-            <div>
-              <span data-i18n="roomCode">Room Code</span>:
-              <strong id="room-code-display">------</strong>
-              <button id="btn-copy-code" class="btn-sm" data-i18n="copyCode">Copy</button>
-            </div>
-            <button id="btn-leave" class="btn danger btn-sm" data-i18n="leave">Leave</button>
-          </div>
-
-          <div class="videos-grid" id="videos-grid">
-            <!-- local + remote videos injected here -->
-          </div>
-
-          <div class="meeting-controls">
-            <button id="btn-toggle-cam" class="btn" data-i18n="cameraOn">Camera On</button>
-            <button id="btn-toggle-mic" class="btn" data-i18n="mute">Mute</button>
-            <button id="btn-share-screen" class="btn" data-i18n="shareScreen">Share Screen</button>
-            <button id="btn-rec-meeting" class="btn primary" data-i18n="localRecording">Local Recording</button>
-            <button id="btn-stop-rec-meeting" class="btn danger hidden" data-i18n="stopRecording">Stop</button>
-          </div>
-
-          <div class="status-bar">
-            <span id="meeting-status" data-i18n="waiting">Waiting for others…</span>
-            <span id="meeting-timer" class="timer">00:00</span>
-          </div>
-        </div>
-      </div>
-    </section>
-  </div>
-
-  <script src="../shared/i18n.js"></script>
-  <script src="app.js"></script>
+  <p style="font-family:system-ui;color:#eef0ff;padding:2rem;">
+    Opening recorder… <a href="recorder.html" style="color:#a594ff">Click here if nothing happens</a>
+  </p>
 </body>
 </html>

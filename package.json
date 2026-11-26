@@ -1,0 +1,9 @@
+{
+  "name": "free-screen-recorder",
+  "version": "1.7.0",
+  "private": true,
+  "scripts": {
+    "start": "npx serve .",
+    "dev": "npx serve ."
+  }
+}
