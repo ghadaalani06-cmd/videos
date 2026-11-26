@@ -64,7 +64,7 @@ function elapsed() {
   return (paused ? pausedAt : Date.now()) - startedAt - pausedTotal;
 }
 function notifyBackground() {
-  try { // no-op in web app } catch (_) {}
+  // web app: no extension badge
 }
 
 // ---------- save-to-disk (optional, for very long recordings) ----------
@@ -101,14 +101,28 @@ async function startRecording() {
     const fps = Number(el.fps.value);
 
     // Must be called straight from the click so the browser shows the picker.
-    const videoConstraints = { frameRate: { ideal: fps }, width: { ideal: w }, height: { ideal: h } };
-    if (el.source.value) videoConstraints.displaySurface = el.source.value;
-    displayStream = await navigator.mediaDevices.getDisplayMedia({
+    const videoConstraints = {
+      frameRate: { ideal: fps },
+      width: { ideal: w },
+      height: { ideal: h },
+    };
+    // Prefer preferred surface but never fail the whole call if unsupported
+    if (el.source.value) {
+      try { videoConstraints.displaySurface = el.source.value; } catch (_) {}
+    }
+    const displayOpts = {
       video: videoConstraints,
-      audio: el.sysAudio.checked ? { echoCancellation: false, noiseSuppression: false } : false,
-      systemAudio: 'include',
-      selfBrowserSurface: 'exclude',
-    });
+      audio: !!el.sysAudio.checked,
+    };
+    try {
+      displayStream = await navigator.mediaDevices.getDisplayMedia(displayOpts);
+    } catch (err) {
+      // Retry with minimal constraints (max compatibility)
+      displayStream = await navigator.mediaDevices.getDisplayMedia({
+        video: true,
+        audio: !!el.sysAudio.checked,
+      });
+    }
 
     if (el.mic.checked) {
       try {

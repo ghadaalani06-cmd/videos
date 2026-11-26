@@ -1,407 +1,270 @@
 /**
- * Self-hosted WebRTC meetings for the Screen Recorder extension.
- * Configurable Socket.IO signaling server. Peer-to-peer media. Local recording.
+ * LiveKit Cloud meetings (token from our server /api/livekit-token)
  */
-
 const $ = (id) => document.getElementById(id);
-
 const el = {
-  lobby: $('lobby'),
-  room: $('room'),
-  createBtn: $('createBtn'),
-  joinBtn: $('joinBtn'),
-  roomInput: $('roomInput'),
-  copyBtn: $('copyBtn'),
-  status: $('status'),
-  serverUrl: $('serverUrl'),
-  saveServer: $('saveServer'),
-  roomCode: $('roomCode'),
-  roomStatus: $('roomStatus'),
-  leaveBtn: $('leaveBtn'),
+  lobby: $('lobby'), room: $('room'),
+  createBtn: $('createBtn'), joinBtn: $('joinBtn'),
+  roomInput: $('roomInput'), copyBtn: $('copyBtn'), status: $('status'),
+  roomCode: $('roomCode'), roomStatus: $('roomStatus'), leaveBtn: $('leaveBtn'),
   videos: $('videos'),
-  toggleCam: $('toggleCam'),
-  toggleMic: $('toggleMic'),
-  shareScreen: $('shareScreen'),
-  recBtn: $('recBtn'),
-  stopRecBtn: $('stopRecBtn'),
-  connStatus: $('connStatus'),
-  recTimer: $('recTimer'),
+  toggleCam: $('toggleCam'), toggleMic: $('toggleMic'), shareScreen: $('shareScreen'),
+  recBtn: $('recBtn'), stopRecBtn: $('stopRecBtn'),
+  connStatus: $('connStatus'), recTimer: $('recTimer'),
 };
 
-let socket = null;
-let localStream = null;
-let screenStream = null;
-let peers = new Map();
-let roomCode = null;
+let room = null;          // LiveKit Room
+let localVideoTrack = null;
+let localAudioTrack = null;
+let screenTrack = null;
+let roomName = null;
 let isCamOn = true;
 let isMicOn = true;
-let sharingScreen = false;
 let mediaRecorder = null;
 let recChunks = [];
-let recStarted = 0;
 let recTimerId = null;
-
-const ICE = {
-  iceServers: [
-    { urls: 'stun:stun.l.google.com:19302' },
-    { urls: 'stun:stun1.l.google.com:19302' },
-  ],
-};
+let recStarted = 0;
+let localMediaStream = null; // for local recording
 
 function say(msg, isError = false) {
   el.status.textContent = msg || '';
   el.status.classList.toggle('error', isError);
 }
-
-function getServerUrl() {
-  return localStorage.getItem('meetServerUrl') || 'http://localhost:3001';
-}
-
-function setServerUrl(url) {
-  localStorage.setItem('meetServerUrl', url.replace(/\/$/, ''));
-}
-
 function pad(n) { return String(n).padStart(2, '0'); }
 function fmt(ms) {
   const s = Math.floor(ms / 1000);
-  return `${pad(Math.floor(s / 60))}:${pad(s % 60)}`;
+  return pad(Math.floor(s / 60)) + ':' + pad(s % 60);
+}
+function randomCode() {
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let c = '';
+  for (let i = 0; i < 6; i++) c += chars[Math.floor(Math.random() * chars.length)];
+  return c;
 }
 
-// ---------- server URL ----------
-el.serverUrl.value = getServerUrl();
-el.saveServer.addEventListener('click', () => {
-  const url = el.serverUrl.value.trim();
-  if (!url) return;
-  setServerUrl(url);
-  say('Server URL saved. You can create or join a room now.');
-  if (socket) { socket.disconnect(); socket = null; }
-});
+async function fetchToken(roomName, identity) {
+  const res = await fetch('/api/livekit-token', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ room: roomName, identity }),
+  });
+  const data = await res.json();
+  if (!data.ok) throw new Error(data.error || 'Token request failed');
+  return data;
+}
 
-// ---------- socket ----------
-function ensureSocket() {
-  if (socket && socket.connected) return Promise.resolve();
-  return new Promise((resolve, reject) => {
-    const url = getServerUrl();
-    if (socket) socket.disconnect();
-    socket = io(url, { transports: ['websocket', 'polling'], timeout: 8000 });
+function ensureTile(id, label, muted = false) {
+  let tile = document.getElementById('tile-' + id);
+  if (!tile) {
+    tile = document.createElement('div');
+    tile.className = 'tile';
+    tile.id = 'tile-' + id;
+    tile.innerHTML = '<video autoplay playsinline ' + (muted ? 'muted' : '') + '></video><div class="label"></div>';
+    el.videos.appendChild(tile);
+  }
+  tile.querySelector('.label').textContent = label;
+  return tile.querySelector('video');
+}
 
-    const onConnect = () => {
-      cleanup();
-      el.connStatus.textContent = 'Signaling connected';
-      el.connStatus.className = 'ok';
-      resolve();
-    };
-    const onError = () => {
-      cleanup();
-      el.connStatus.textContent = 'Signaling offline';
-      el.connStatus.className = 'bad';
-      reject(new Error('Cannot reach signaling server at ' + url));
-    };
-    const cleanup = () => {
-      socket.off('connect', onConnect);
-      socket.off('connect_error', onError);
-    };
+function attachTrack(track, participant) {
+  if (track.kind !== 'video' && track.kind !== 'audio') return;
+  const id = participant.identity + '-' + track.sid;
+  if (track.kind === 'video') {
+    const videoEl = ensureTile(id, participant.identity === room?.localParticipant?.identity ? 'You' : participant.identity);
+    track.attach(videoEl);
+  } else {
+    // audio: attach to a hidden audio element or the existing video tile
+    const audioEl = document.createElement('audio');
+    audioEl.autoplay = true;
+    audioEl.dataset.sid = track.sid;
+    document.body.appendChild(audioEl);
+    track.attach(audioEl);
+  }
+}
 
-    socket.on('connect', onConnect);
-    socket.on('connect_error', onError);
-
-    socket.on('peer-joined', async ({ id }) => {
-      await createPeer(id, true);
-      el.roomStatus.textContent = 'Participant joined';
-    });
-    socket.on('peer-left', ({ id }) => {
-      removePeer(id);
-      el.roomStatus.textContent = 'Participant left';
-    });
-    socket.on('signal', async ({ from, data }) => {
-      let peer = peers.get(from);
-      if (!peer) peer = await createPeer(from, false);
-      const pc = peer.pc;
-      try {
-        if (data.sdp) {
-          await pc.setRemoteDescription(data.sdp);
-          if (data.sdp.type === 'offer') {
-            const answer = await pc.createAnswer();
-            await pc.setLocalDescription(answer);
-            socket.emit('signal', { to: from, data: { sdp: pc.localDescription } });
-          }
-        } else if (data.candidate) {
-          await pc.addIceCandidate(data.candidate);
-        }
-      } catch (e) {
-        console.warn('signal error', e);
-      }
-    });
+function detachTrack(track) {
+  track.detach().forEach((el) => {
+    el.remove();
+  });
+  // remove empty video tiles
+  document.querySelectorAll('.tile').forEach((tile) => {
+    const v = tile.querySelector('video');
+    if (v && !v.srcObject) tile.remove();
   });
 }
 
-// ---------- media ----------
-async function startLocalMedia() {
-  if (localStream) return localStream;
-  try {
-    localStream = await navigator.mediaDevices.getUserMedia({
-      video: { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: 'user' },
-      audio: { echoCancellation: true, noiseSuppression: true },
-    });
-  } catch (e) {
-    try {
-      localStream = await navigator.mediaDevices.getUserMedia({ video: false, audio: true });
-      say('Camera unavailable — audio only.', true);
-    } catch (e2) {
-      throw new Error('Camera and microphone are blocked.');
+async function joinLiveKit(name) {
+  const identity = 'user-' + Math.random().toString(36).slice(2, 8);
+  el.connStatus.textContent = 'Requesting token…';
+  const { token, url } = await fetchToken(name, identity);
+
+  const LK = window.LivekitClient || window.livekit;
+  if (!LK || !LK.Room) throw new Error('LiveKit client SDK failed to load');
+
+  room = new LK.Room({ adaptiveStream: true, dynacast: true });
+
+  room.on(LK.RoomEvent.TrackSubscribed, (track, _pub, participant) => {
+    attachTrack(track, participant);
+  });
+  room.on(LK.RoomEvent.TrackUnsubscribed, (track) => {
+    detachTrack(track);
+  });
+  room.on(LK.RoomEvent.ParticipantDisconnected, (participant) => {
+    document.querySelectorAll('[id^="tile-' + participant.identity + '"]').forEach((n) => n.remove());
+    el.roomStatus.textContent = participant.identity + ' left';
+  });
+  room.on(LK.RoomEvent.Disconnected, () => {
+    el.connStatus.textContent = 'Disconnected';
+    el.connStatus.className = 'bad';
+  });
+
+  await room.connect(url, token);
+  el.connStatus.textContent = 'Connected (LiveKit)';
+  el.connStatus.className = 'ok';
+
+  // publish camera + mic
+  const tracks = await LK.createLocalTracks({ audio: true, video: true });
+  for (const track of tracks) {
+    await room.localParticipant.publishTrack(track);
+    if (track.kind === 'video') {
+      localVideoTrack = track;
+      const v = ensureTile('local', 'You', true);
+      track.attach(v);
     }
-  }
-  addLocalTile();
-  return localStream;
-}
-
-function addLocalTile() {
-  let tile = document.getElementById('tile-local');
-  if (!tile) {
-    tile = document.createElement('div');
-    tile.className = 'tile';
-    tile.id = 'tile-local';
-    tile.innerHTML = '<video autoplay muted playsinline></video><div class="label">You</div>';
-    el.videos.prepend(tile);
-  }
-  tile.querySelector('video').srcObject = localStream;
-}
-
-function addRemoteTile(peerId, stream) {
-  let tile = document.getElementById('tile-' + peerId);
-  if (!tile) {
-    tile = document.createElement('div');
-    tile.className = 'tile';
-    tile.id = 'tile-' + peerId;
-    tile.innerHTML = '<video autoplay playsinline></video><div class="label">' + peerId.slice(0, 6) + '</div>';
-    el.videos.appendChild(tile);
-  }
-  tile.querySelector('video').srcObject = stream;
-}
-
-// ---------- WebRTC ----------
-async function createPeer(peerId, isInitiator) {
-  if (peers.has(peerId)) return peers.get(peerId);
-
-  const pc = new RTCPeerConnection(ICE);
-
-  if (localStream) {
-    localStream.getTracks().forEach((t) => pc.addTrack(t, localStream));
+    if (track.kind === 'audio') localAudioTrack = track;
   }
 
-  pc.onicecandidate = (e) => {
-    if (e.candidate) socket.emit('signal', { to: peerId, data: { candidate: e.candidate } });
-  };
+  // media stream for local recording
+  localMediaStream = new MediaStream(
+    tracks.map((t) => t.mediaStreamTrack).filter(Boolean)
+  );
 
-  pc.ontrack = (e) => {
-    const stream = e.streams[0];
-    const peer = peers.get(peerId);
-    if (peer) peer.stream = stream;
-    addRemoteTile(peerId, stream);
-  };
-
-  pc.onconnectionstatechange = () => {
-    if (pc.connectionState === 'failed' || pc.connectionState === 'closed') {
-      removePeer(peerId);
-    }
-  };
-
-  const peer = { pc, stream: null };
-  peers.set(peerId, peer);
-
-  if (isInitiator) {
-    const offer = await pc.createOffer();
-    await pc.setLocalDescription(offer);
-    socket.emit('signal', { to: peerId, data: { sdp: pc.localDescription } });
-  }
-
-  return peer;
-}
-
-function removePeer(peerId) {
-  const peer = peers.get(peerId);
-  if (peer) {
-    peer.pc.close();
-    peers.delete(peerId);
-  }
-  const tile = document.getElementById('tile-' + peerId);
-  if (tile) tile.remove();
-}
-
-// ---------- room actions ----------
-el.createBtn.addEventListener('click', async () => {
-  el.createBtn.disabled = true;
-  say('Connecting…');
-  try {
-    await ensureSocket();
-    await startLocalMedia();
-    socket.emit('create-room', (res) => {
-      if (!res || !res.ok) {
-        say((res && res.error) || 'Could not create room', true);
-        el.createBtn.disabled = false;
-        return;
-      }
-      roomCode = res.code;
-      enterRoom();
-    });
-  } catch (e) {
-    say(e.message, true);
-    el.createBtn.disabled = false;
-  }
-});
-
-el.joinBtn.addEventListener('click', async () => {
-  const code = el.roomInput.value.trim().toUpperCase();
-  if (!code) {
-    say('Enter a room code first.', true);
-    return;
-  }
-  el.joinBtn.disabled = true;
-  say('Joining…');
-  try {
-    await ensureSocket();
-    await startLocalMedia();
-    socket.emit('join-room', { code }, async (res) => {
-      if (!res || !res.ok) {
-        say((res && res.error) || 'Room not found', true);
-        el.joinBtn.disabled = false;
-        return;
-      }
-      roomCode = res.code;
-      enterRoom();
-      for (const id of res.peers || []) {
-        await createPeer(id, true);
-      }
-    });
-  } catch (e) {
-    say(e.message, true);
-    el.joinBtn.disabled = false;
-  }
-});
-
-el.roomInput.addEventListener('input', () => {
-  el.copyBtn.disabled = !el.roomInput.value.trim();
-});
-
-el.copyBtn.addEventListener('click', async () => {
-  const code = (el.roomInput.value || roomCode || '').trim().toUpperCase();
-  if (!code) return;
-  try {
-    await navigator.clipboard.writeText(code);
-    say('Room code copied. Share it with participants.');
-  } catch (_) {
-    say('Code: ' + code);
-  }
-});
-
-function enterRoom() {
+  roomName = name;
   el.lobby.hidden = true;
   el.room.hidden = false;
-  el.roomCode.textContent = roomCode;
-  el.roomStatus.textContent = 'Waiting for others…';
-  el.roomInput.value = roomCode;
+  el.roomCode.textContent = name;
+  el.roomStatus.textContent = 'In meeting';
+  el.roomInput.value = name;
   el.copyBtn.disabled = false;
   document.body.classList.add('recording');
   say('');
 }
 
-el.leaveBtn.addEventListener('click', leaveRoom);
+async function startMeeting(create) {
+  const name = (el.roomInput.value.trim() || (create ? randomCode() : '')).toUpperCase();
+  if (!name) {
+    say('Enter a room code to join.', true);
+    return;
+  }
+  el.createBtn.disabled = true;
+  el.joinBtn.disabled = true;
+  say(create ? 'Creating room…' : 'Joining…');
+  try {
+    await joinLiveKit(name);
+  } catch (e) {
+    console.error(e);
+    say(e.message || 'Could not connect', true);
+    el.createBtn.disabled = false;
+    el.joinBtn.disabled = false;
+  }
+}
 
-function leaveRoom() {
+el.createBtn.addEventListener('click', () => startMeeting(true));
+el.joinBtn.addEventListener('click', () => startMeeting(false));
+
+el.roomInput.addEventListener('input', () => {
+  el.copyBtn.disabled = !el.roomInput.value.trim();
+});
+el.copyBtn.addEventListener('click', async () => {
+  const code = (el.roomInput.value || roomName || '').trim().toUpperCase();
+  if (!code) return;
+  try {
+    await navigator.clipboard.writeText(code);
+    say('Room code copied.');
+  } catch (_) {
+    say('Code: ' + code);
+  }
+});
+
+el.leaveBtn.addEventListener('click', async () => {
   if (mediaRecorder && mediaRecorder.state !== 'inactive') mediaRecorder.stop();
-  peers.forEach((p) => p.pc.close());
-  peers.clear();
-  if (localStream) {
-    localStream.getTracks().forEach((t) => t.stop());
-    localStream = null;
+  if (room) {
+    await room.disconnect();
+    room = null;
   }
-  if (screenStream) {
-    screenStream.getTracks().forEach((t) => t.stop());
-    screenStream = null;
-  }
-  if (socket) {
-    socket.disconnect();
-    socket = null;
-  }
+  localVideoTrack = localAudioTrack = screenTrack = null;
+  localMediaStream = null;
   el.videos.innerHTML = '';
+  document.querySelectorAll('audio[data-sid]').forEach((a) => a.remove());
   el.room.hidden = true;
   el.lobby.hidden = false;
   el.createBtn.disabled = false;
   el.joinBtn.disabled = false;
-  roomCode = null;
-  sharingScreen = false;
-  el.shareScreen.textContent = 'Share screen';
   document.body.classList.remove('recording');
   say('Left the meeting.');
-}
+});
 
-// ---------- in-room controls ----------
-el.toggleCam.addEventListener('click', () => {
-  if (!localStream) return;
+el.toggleCam.addEventListener('click', async () => {
+  if (!localVideoTrack) return;
   isCamOn = !isCamOn;
-  localStream.getVideoTracks().forEach((t) => (t.enabled = isCamOn));
+  if (typeof localVideoTrack.setEnabled === 'function') {
+    await localVideoTrack.setEnabled(isCamOn);
+  } else if (localVideoTrack.mediaStreamTrack) {
+    localVideoTrack.mediaStreamTrack.enabled = isCamOn;
+  }
   el.toggleCam.textContent = isCamOn ? 'Camera on' : 'Camera off';
 });
 
-el.toggleMic.addEventListener('click', () => {
-  if (!localStream) return;
+el.toggleMic.addEventListener('click', async () => {
+  if (!localAudioTrack) return;
   isMicOn = !isMicOn;
-  localStream.getAudioTracks().forEach((t) => (t.enabled = isMicOn));
+  if (typeof localAudioTrack.setEnabled === 'function') {
+    await localAudioTrack.setEnabled(isMicOn);
+  } else {
+    localAudioTrack.mediaStreamTrack.enabled = isMicOn;
+  }
   el.toggleMic.textContent = isMicOn ? 'Mic on' : 'Mic muted';
 });
 
 el.shareScreen.addEventListener('click', async () => {
-  if (sharingScreen) {
-    if (screenStream) {
-      screenStream.getTracks().forEach((t) => t.stop());
-      screenStream = null;
-    }
-    const camTrack = localStream && localStream.getVideoTracks()[0];
-    peers.forEach(({ pc }) => {
-      const sender = pc.getSenders().find((s) => s.track && s.track.kind === 'video');
-      if (sender && camTrack) sender.replaceTrack(camTrack);
-    });
-    const localVideo = document.querySelector('#tile-local video');
-    if (localVideo && localStream) localVideo.srcObject = localStream;
-    sharingScreen = false;
+  const LK = window.LivekitClient || window.livekit;
+  if (!room || !LK) return;
+
+  if (screenTrack) {
+    await room.localParticipant.unpublishTrack(screenTrack);
+    screenTrack.stop();
+    screenTrack = null;
     el.shareScreen.textContent = 'Share screen';
     return;
   }
 
   try {
-    screenStream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: false });
-    const screenTrack = screenStream.getVideoTracks()[0];
-    peers.forEach(({ pc }) => {
-      const sender = pc.getSenders().find((s) => s.track && s.track.kind === 'video');
-      if (sender) sender.replaceTrack(screenTrack);
-    });
-    const localVideo = document.querySelector('#tile-local video');
-    if (localVideo) localVideo.srcObject = screenStream;
-    screenTrack.onended = () => el.shareScreen.click();
-    sharingScreen = true;
+    screenTrack = await LK.createLocalScreenTracks({ audio: false }).then((arr) => arr[0]);
+    await room.localParticipant.publishTrack(screenTrack);
     el.shareScreen.textContent = 'Stop sharing';
+    screenTrack.mediaStreamTrack.onended = () => el.shareScreen.click();
   } catch (e) {
     if (e.name !== 'NotAllowedError') say('Screen share failed: ' + e.message, true);
   }
 });
 
-// ---------- local recording ----------
 el.recBtn.addEventListener('click', () => {
-  if (!localStream) return;
+  const stream = localMediaStream;
+  if (!stream) {
+    say('No local media to record yet.', true);
+    return;
+  }
   recChunks = [];
   const mime = MediaRecorder.isTypeSupported('video/webm;codecs=vp9,opus')
-    ? 'video/webm;codecs=vp9,opus'
-    : 'video/webm';
-  mediaRecorder = new MediaRecorder(localStream, { mimeType: mime, videoBitsPerSecond: 4e6 });
-  mediaRecorder.ondataavailable = (e) => {
-    if (e.data && e.data.size) recChunks.push(e.data);
-  };
+    ? 'video/webm;codecs=vp9,opus' : 'video/webm';
+  mediaRecorder = new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: 4e6 });
+  mediaRecorder.ondataavailable = (e) => { if (e.data && e.data.size) recChunks.push(e.data); };
   mediaRecorder.onstop = () => {
     const blob = new Blob(recChunks, { type: 'video/webm' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = 'meeting-' + (roomCode || 'rec') + '-' + Date.now() + '.webm';
+    a.download = 'meeting-' + (roomName || 'rec') + '-' + Date.now() + '.webm';
     a.click();
     URL.revokeObjectURL(url);
     clearInterval(recTimerId);
@@ -422,4 +285,17 @@ el.stopRecBtn.addEventListener('click', () => {
   el.recBtn.hidden = false;
 });
 
-say('Set the signaling server URL, then create or join a room.');
+// health check
+fetch('/api/health').then((r) => r.json()).then((h) => {
+  if (h.livekit) {
+    el.connStatus.textContent = 'LiveKit ready';
+    el.connStatus.className = 'ok';
+    say('LiveKit is configured. Create or join a room.');
+  } else {
+    el.connStatus.textContent = 'LiveKit not configured';
+    el.connStatus.className = 'bad';
+    say('Set LIVEKIT_URL, LIVEKIT_API_KEY, LIVEKIT_API_SECRET on the server, then restart.', true);
+  }
+}).catch(() => {
+  say('Server offline — start the Node server to use meetings.', true);
+});
