@@ -1,1 +1,9 @@
-{"name":"screen-recorder-group-meetings","version":"1.0.0","private":true,"scripts":{"start":"node server.js"},"dependencies":{"ws":"^8.18.0"}}
+{
+  "name": "screen-recorder-meetings",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Screen recorder web app with video meeting rooms",
+  "main": "server.js",
+  "scripts": { "start": "node server.js" },
+  "engines": { "node": ">=18" }
+}

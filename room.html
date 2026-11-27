@@ -1,0 +1,145 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Meeting room</title>
+  <meta name="theme-color" content="#0f1226">
+  <link rel="icon" href="icons/icon32.png">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="stylesheet" href="recorder.css">
+  <link rel="stylesheet" href="room.css">
+</head>
+<body data-title="title.room">
+  <header class="top">
+    <span class="tally" aria-hidden="true"></span>
+    <h1 data-i18n="title.room">Meeting room</h1>
+    <p data-i18n="tagline">Free. No watermark. No time limit.</p>
+    <div class="topbar">
+      <a class="nav" href="recorder.html" data-i18n="nav.recorder">Back to recorder</a>
+      <button class="nav" id="langBtn" type="button" data-i18n="nav.lang">العربية</button>
+    </div>
+  </header>
+
+  <!-- ===== lobby ===== -->
+  <main class="lobby" id="lobby">
+    <section class="lobby-card">
+      <div class="lobby-preview">
+        <div class="lobby-video"><video id="lobbyVideo" muted playsinline autoplay></video><div class="avatar" id="lobbyAvatar"><span>?</span></div></div>
+        <div class="lobby-toggles">
+          <button class="cbtn" id="lobbyMic" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"></svg><span></span></button>
+          <button class="cbtn" id="lobbyCam" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"></svg><span></span></button>
+        </div>
+        <p class="cam-note" id="lobbyNote" role="alert" hidden></p>
+      </div>
+      <div class="lobby-form">
+        <h2 data-i18n="room.lobby.h">Start or join a meeting</h2>
+        <div class="field stack">
+          <label for="userName" data-i18n="room.name">Your name</label>
+          <input type="text" id="userName" dir="auto" maxlength="40" data-i18n-ph="room.name.ph" placeholder="e.g. Sara" autocomplete="name">
+        </div>
+        <div class="server-box" id="serverBox" hidden>
+          <div class="field stack">
+            <label for="serverUrl" data-i18n="room.server">Server address</label>
+            <input type="url" id="serverUrl" dir="ltr" placeholder="https://meet.example.com">
+          </div>
+          <button class="tool" id="saveServer" type="button" data-i18n="room.server.save">Save</button>
+          <p class="hint" data-i18n="room.server.hint"></p>
+          <p class="cam-note" id="serverNote" role="alert" hidden></p>
+        </div>
+        <button class="primary" id="newMeeting" type="button" data-i18n="room.new">Start a new meeting</button>
+        <div class="join-row" id="joinRow">
+          <input type="text" id="joinCode" dir="ltr" data-i18n-ph="room.code.ph" placeholder="Paste a code or link" aria-label="Meeting code or link">
+          <button class="secondary" id="joinBtn" type="button" data-i18n="room.join">Join</button>
+        </div>
+        <p class="hint" data-i18n="room.privacy"></p>
+      </div>
+    </section>
+  </main>
+
+  <!-- ===== in the meeting ===== -->
+  <main class="call" id="call" hidden>
+    <div class="call-top">
+      <span class="code" id="roomLabel" dir="ltr"></span>
+      <button class="tool" id="copyLink" type="button" data-i18n="room.copy">Copy invite link</button>
+      <span class="people" id="peopleCount"></span>
+      <span class="rec-banner" id="recBanner" role="status" hidden></span>
+    </div>
+    <div class="call-body">
+      <section class="grid" id="grid" aria-label="Participants"></section>
+      <aside class="side">
+        <div class="tabs" role="tablist">
+          <button type="button" role="tab" id="tabChat" class="on" aria-selected="true" data-i18n="room.tab.chat">Chat</button>
+          <button type="button" role="tab" id="tabCaptions" aria-selected="false" data-i18n="room.tab.captions">Captions</button>
+          <button type="button" role="tab" id="tabNotes" aria-selected="false" data-i18n="room.tab.notes">Notes</button>
+        </div>
+        <div class="tabpanel" id="panelChat">
+          <div class="chat-log" id="chatLog" aria-live="polite"></div>
+          <div class="chat-form">
+            <input type="text" id="chatText" dir="auto" data-i18n-ph="room.chat.ph" placeholder="Type a message" autocomplete="off">
+            <button class="tool" id="chatSend" type="button" data-i18n="room.send">Send</button>
+          </div>
+        </div>
+        <div class="tabpanel" id="panelCaptions" hidden>
+          <label class="switch"><input type="checkbox" id="capOn"><span data-i18n="room.captions">Share my live captions</span></label>
+          <div class="field">
+            <label for="capLang" data-i18n="meet.lang">Speech language</label>
+            <select id="capLang">
+              <option value="en-US">English (US)</option>
+              <option value="en-GB">English (UK)</option>
+              <option value="ar-AE">العربية (الإمارات)</option>
+              <option value="ar-SA">العربية (السعودية)</option>
+              <option value="ar-EG">العربية (مصر)</option>
+            </select>
+          </div>
+          <p class="hint" data-i18n="room.captions.hint"></p>
+          <div class="transcript" id="capLog"><p class="m-empty" id="capEmpty" data-i18n="meet.transcript.empty"></p></div>
+        </div>
+        <div class="tabpanel" id="panelNotes" hidden>
+          <div class="note-form">
+            <select id="noteType" aria-label="Type">
+              <option value="note" data-i18n="note.note">Note</option>
+              <option value="action" data-i18n="note.action">Action item</option>
+              <option value="decision" data-i18n="note.decision">Decision</option>
+            </select>
+            <input type="text" id="noteText" dir="auto" data-i18n-ph="note.ph" placeholder="Type and press Enter">
+            <button class="tool" id="noteAdd" type="button" data-i18n="note.add">Add</button>
+          </div>
+          <ul class="notes" id="noteList"></ul>
+          <div class="export-box" id="exportBox">
+            <button class="secondary" id="dlMinutes" type="button" data-i18n="min.dl">Download minutes (.md)</button>
+            <button class="secondary" id="dlSrt" type="button" data-i18n="srt.dl">Download captions (.srt)</button>
+            <button class="ghost" id="copyMinutes" type="button" data-i18n="min.copy">Copy minutes</button>
+          </div>
+        </div>
+      </aside>
+    </div>
+    <div class="controls">
+      <button class="cbtn" id="micBtn" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"></svg><span></span></button>
+      <button class="cbtn" id="camBtn" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"></svg><span></span></button>
+      <button class="cbtn" id="shareBtn" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"></svg><span></span></button>
+      <button class="cbtn" id="recBtn" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"></svg><span></span></button>
+      <button class="cbtn leave" id="leaveBtn" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"></svg><span></span></button>
+    </div>
+    <p class="toast" id="toast" role="status" hidden></p>
+  </main>
+
+  <!-- ===== after leaving ===== -->
+  <main class="ended" id="ended" hidden>
+    <section class="ended-card">
+      <h2 data-i18n="room.ended">You left the meeting</h2>
+      <div class="rec-result" id="recResult" hidden>
+        <p data-i18n="room.rec.ready">Meeting recording is ready</p>
+        <a class="primary link" id="recDownload" download data-i18n="room.download">Download meeting recording</a>
+      </div>
+      <div id="endedExports"></div>
+      <button class="secondary" id="rejoinBtn" type="button" data-i18n="room.rejoin">Rejoin</button>
+      <a class="ghost link" href="index.html" id="homeLink" data-i18n="room.home">Back to home</a>
+    </section>
+  </main>
+
+  <script src="i18n.js"></script>
+  <script src="pwa.js"></script>
+  <script src="room.js"></script>
+</body>
+</html>
