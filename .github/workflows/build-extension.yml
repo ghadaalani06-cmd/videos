@@ -1,0 +1,49 @@
+name: Build browser extension ZIP
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - "manifest.json"
+      - "background.js"
+      - "recorder.html"
+      - "recorder.js"
+      - "recorder.css"
+      - "i18n.js"
+      - "clipstore.js"
+      - "gate-processor.js"
+      - "meeting.html"
+      - "meeting.js"
+      - "meeting.css"
+      - "editor.html"
+      - "editor.js"
+      - "editor.css"
+      - "icons/**"
+      - ".github/workflows/build-extension.yml"
+
+jobs:
+  package:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Assemble extension-only folder
+        run: |
+          set -e
+          mkdir -p dist/screen-recorder-extension
+          cp manifest.json background.js recorder.html recorder.js recorder.css i18n.js clipstore.js gate-processor.js meeting.html meeting.js meeting.css editor.html editor.js editor.css dist/screen-recorder-extension/
+          cp -R icons dist/screen-recorder-extension/icons
+          test -f dist/screen-recorder-extension/manifest.json
+          cd dist
+          zip -r screen-recorder-extension.zip screen-recorder-extension
+
+      - name: Upload extension ZIP
+        uses: actions/upload-artifact@v4
+        with:
+          name: screen-recorder-extension
+          path: dist/screen-recorder-extension.zip
+          if-no-files-found: error
+          retention-days: 14
