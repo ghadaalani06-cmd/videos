@@ -313,3 +313,15 @@ button.tool:hover:not(:disabled) { background: var(--edge); }
 [dir="rtl"] .switch input { direction: ltr; }
 .time, .size, .clock, .timeline, .meter-track { direction: ltr; unicode-bidi: isolate; }
 [dir="rtl"] .readout { flex-direction: row-reverse; }
+
+/* ===== background swatches ===== */
+input[type="range"] { width: 100%; accent-color: var(--signal); margin: 0; }
+.swatches { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; }
+.sw {
+  width: 100%; aspect-ratio: 1; padding: 0; border-radius: 10px; border: 2px solid var(--edge);
+  background: linear-gradient(135deg, var(--a), var(--b)); font-size: .72rem; font-weight: 700; color: var(--ink);
+}
+.sw.on { border-color: #fff; box-shadow: 0 0 0 2px var(--signal); }
+.sw.none { background: var(--midnight); color: var(--mist); }
+.sw.upload { background: var(--midnight) center / cover no-repeat; font-size: 1.5rem; color: var(--signal-lit); line-height: 1; }
+.sw:disabled { opacity: .5; cursor: not-allowed; }

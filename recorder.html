@@ -132,6 +132,7 @@
                 <option value="big" data-i18n="layout.big">Big bubble</option>
                 <option value="side" data-i18n="layout.side">Side by side</option>
                 <option value="camera" data-i18n="layout.camera">Camera only (full)</option>
+                <option value="meeting">Two-person meeting (split)</option>
               </select>
             </div>
             <div class="field" id="posField">
@@ -155,7 +156,40 @@
               <span data-i18n="cam.mirror">Mirror my camera</span>
             </label>
             <p class="hint" data-i18n="cam.hint">Layout, position and shape can be changed while recording.</p>
+            <p class="hint">Two-person meeting: uses a second camera source when available; backgrounds are decorative panels behind each camera frame.</p>
           </div>
+        </section>
+
+        <section class="sec">
+          <h2 data-i18n="sec.bg">Background</h2>
+          <div class="swatches" id="bgSwatches" role="group" data-i18n-aria="sec.bg">
+            <button type="button" class="sw none on" data-bg="none" aria-pressed="true" data-i18n-aria="bg.none"><span data-i18n="bg.none">None</span></button>
+            <button type="button" class="sw" data-bg="violet" style="--a:#7c5cff;--b:#1b1e5a" aria-pressed="false" data-i18n-aria="bg.violet"></button>
+            <button type="button" class="sw" data-bg="sunset" style="--a:#ff7a59;--b:#5b3df0" aria-pressed="false" data-i18n-aria="bg.sunset"></button>
+            <button type="button" class="sw" data-bg="ocean" style="--a:#0f766e;--b:#0f1226" aria-pressed="false" data-i18n-aria="bg.ocean"></button>
+            <button type="button" class="sw" data-bg="mint" style="--a:#4fe3a0;--b:#0f766e" aria-pressed="false" data-i18n-aria="bg.mint"></button>
+            <button type="button" class="sw" data-bg="night" style="--a:#0f1226;--b:#2a2f5e" aria-pressed="false" data-i18n-aria="bg.night"></button>
+            <button type="button" class="sw" data-bg="sand" style="--a:#f2d7a6;--b:#e7a97b" aria-pressed="false" data-i18n-aria="bg.sand"></button>
+            <button type="button" class="sw" data-bg="paper" style="--a:#eef0ff;--b:#cfd6ff" aria-pressed="false" data-i18n-aria="bg.paper"></button>
+            <button type="button" class="sw upload" id="bgUploadBtn" data-bg="image" aria-pressed="false" data-i18n-aria="bg.upload">+</button>
+          </div>
+          <input type="file" id="bgFile" accept="image/*" hidden>
+          <p class="cam-note" id="bgNote" role="alert" hidden></p>
+          <div class="sub" id="bgOptions" hidden>
+            <div class="field">
+              <label for="bgPad" data-i18n="bg.pad">Padding</label>
+              <input type="range" id="bgPad" min="0" max="20" value="6">
+            </div>
+            <div class="field">
+              <label for="bgRadius" data-i18n="bg.round">Rounded corners</label>
+              <input type="range" id="bgRadius" min="0" max="40" value="14">
+            </div>
+            <label class="switch">
+              <input type="checkbox" id="bgShadow" checked>
+              <span data-i18n="bg.shadow">Shadow</span>
+            </label>
+          </div>
+          <p class="hint" data-i18n="bg.hint"></p>
         </section>
 
         <section class="sec">

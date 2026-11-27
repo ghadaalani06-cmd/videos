@@ -44,6 +44,9 @@ const I18N = {
     'cam.busy': 'Your camera is being used by another app (Zoom, Teams, Meet). Close it and try again.',
     'cam.other': 'Camera problem: {m}',
     'unsupported.capture': "Screen recording isn't available on this device or browser. Open this page in Chrome or Edge on a computer. The video editor still works here.",
+    'sec.bg': 'Background', 'bg.none': 'None', 'bg.upload': 'Upload your own image', 'bg.pad': 'Padding', 'bg.round': 'Rounded corners', 'bg.shadow': 'Shadow',
+    'bg.hint': 'Places your screen on a styled background. Pick a colour or upload your own image.', 'bg.badimage': 'That file could not be used as an image.',
+    'bg.violet': 'Violet', 'bg.sunset': 'Sunset', 'bg.ocean': 'Ocean', 'bg.mint': 'Mint', 'bg.night': 'Night', 'bg.sand': 'Sand', 'bg.paper': 'Paper',
     // meeting
     'meet.title': 'Meeting', 'meet.name': 'Meeting name', 'meet.name.ph': 'e.g. Weekly team sync',
     'meet.lang': 'Speech language', 'meet.transcribe': 'Live transcript',
@@ -128,6 +131,9 @@ const I18N = {
     'cam.busy': 'الكاميرا مستخدمة في تطبيق آخر (Zoom أو Teams أو Meet). أغلقه وحاول مرة أخرى.',
     'cam.other': 'مشكلة في الكاميرا: {m}',
     'unsupported.capture': 'تسجيل الشاشة غير متاح على هذا الجهاز أو المتصفح. افتح الصفحة في Chrome أو Edge على جهاز كمبيوتر. أما محرر الفيديو فيعمل هنا.',
+    'sec.bg': 'الخلفية', 'bg.none': 'بدون', 'bg.upload': 'ارفع صورتك الخاصة', 'bg.pad': 'الهوامش', 'bg.round': 'زوايا مستديرة', 'bg.shadow': 'ظل',
+    'bg.hint': 'يضع شاشتك فوق خلفية منسّقة. اختر لونًا أو ارفع صورتك الخاصة.', 'bg.badimage': 'تعذّر استخدام هذا الملف كصورة.',
+    'bg.violet': 'بنفسجي', 'bg.sunset': 'غروب', 'bg.ocean': 'محيط', 'bg.mint': 'نعناعي', 'bg.night': 'ليلي', 'bg.sand': 'رملي', 'bg.paper': 'ورقي',
     'meet.title': 'اجتماع', 'meet.name': 'اسم الاجتماع', 'meet.name.ph': 'مثال: اجتماع الفريق الأسبوعي',
     'meet.lang': 'لغة الكلام', 'meet.transcribe': 'نص مباشر',
     'meet.hint': 'يعتمد النص على خدمة الكلام في متصفحك ويحتاج إلى الإنترنت. غيّر اللغة في أي وقت إذا انتقل الاجتماع بين العربية والإنجليزية. بعض المتصفحات تسمع الميكروفون فقط.',
@@ -182,7 +188,7 @@ function applyI18n() {
   root.dir = LANG === 'ar' ? 'rtl' : 'ltr';
   document.querySelectorAll('[data-i18n]').forEach((n) => { n.textContent = t(n.dataset.i18n); });
   document.querySelectorAll('[data-i18n-ph]').forEach((n) => { n.placeholder = t(n.dataset.i18nPh); });
-  document.querySelectorAll('[data-i18n-aria]').forEach((n) => { n.setAttribute('aria-label', t(n.dataset.i18nAria)); });
+  document.querySelectorAll('[data-i18n-aria]').forEach((n) => { n.setAttribute('aria-label', t(n.dataset.i18nAria)); n.title = t(n.dataset.i18nAria); });
   if (document.body && document.body.dataset.title) document.title = t(document.body.dataset.title);
 }
 

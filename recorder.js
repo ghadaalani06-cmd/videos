@@ -29,7 +29,7 @@ let displayStream = null, micStream = null, audioCtx = null, recorder = null;
 let chunks = [], bytes = 0, fileHandle = null, writable = null, writeChain = Promise.resolve();
 let startedAt = 0, pausedTotal = 0, pausedAt = 0, timer = null, blobUrl = null, currentExt = 'webm';
 let recording = false, paused = false;
-let camStream = null, camVideo = null, screenVideo = null, canvasStream = null, ctx2d = null;
+let camStream = null, camVideo = null, cam2Stream = null, cam2Video = null, screenVideo = null, canvasStream = null, ctx2d = null;
 let compositing = false, timerWorker = null;
 
 // ---------- setup ----------
@@ -133,14 +133,11 @@ async function startRecording() {
     }
 
     stopCamTest();
-    if (el.camera.checked) {
+    if (el.camera.checked || bgOn()) {
       try {
         await startCompositor();
       } catch (e) {
         stopCompositor();
-        camFail(e);
-        el.camera.checked = false;
-        el.camOptions.hidden = true;
       }
     }
     if (compositing) {
@@ -194,6 +191,7 @@ async function startRecording() {
     cleanupStreams();
     el.screen.classList.remove('has-video');
     el.start.disabled = false;
+    refreshBgPreview();
     say(e.name === 'NotAllowedError' ? t('msg.cancelled') : t('msg.startfail', { m: e.message }), e.name !== 'NotAllowedError');
   }
 }
@@ -323,6 +321,7 @@ function setUI(mode) {
   document.body.classList.toggle('recording', mode === 'recording');
   const idle = mode === 'idle';
   if (idle && el.camera.checked && !camTestStream) startCamTest();
+  if (idle) refreshBgPreview();
   el.start.hidden = !idle;
   el.start.disabled = !idle;
   el.live.hidden = mode !== 'recording';
@@ -331,7 +330,8 @@ function setUI(mode) {
   el.badge.classList.remove('paused'); el.badgeText.textContent = t('badge.rec');
   el.pause.textContent = t('pause');
   el.result.hidden = mode !== 'done';
-  el.settings.querySelectorAll('input,select').forEach((i) => (i.disabled = !idle && !i.closest('#camOptions') && i.id !== 'speechLang' && i.id !== 'meetTitle'));
+  el.settings.querySelectorAll('input,select').forEach((i) => (i.disabled = !idle && !i.closest('#camOptions') && i.id !== 'speechLang' && i.id !== 'meetTitle' && !(compositing && i.closest('#bgOptions'))));
+  bgSwatches.querySelectorAll('button').forEach((b) => (b.disabled = !idle && !compositing));
   el.pickFile.disabled = !idle;
 }
 
@@ -370,13 +370,29 @@ function videoReady(v) {
 }
 
 async function startCompositor() {
-  camStream = await navigator.mediaDevices.getUserMedia({
-    video: { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: 'user' },
-    audio: false,
-  });
-  camVideo = hiddenVideo(camStream);
+  if (el.camera.checked) {
+    try {
+      camStream = await navigator.mediaDevices.getUserMedia({
+        video: { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: 'user' },
+        audio: false,
+      });
+      camVideo = hiddenVideo(camStream);
+      if (el.layout.value === 'meeting') {
+        try {
+          cam2Stream = await navigator.mediaDevices.getUserMedia({ video: { width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false });
+          cam2Video = hiddenVideo(cam2Stream);
+        } catch (secondErr) { console.warn('Second camera unavailable; meeting layout will use first camera and placeholder.', secondErr); }
+      }
+    } catch (e) {
+      camFail(e);
+      el.camera.checked = false;
+      el.camOptions.hidden = true;
+      camStream = null; camVideo = null;
+      if (!bgOn()) throw e;
+    }
+  }
   screenVideo = hiddenVideo(displayStream);
-  await Promise.all([videoReady(camVideo), videoReady(screenVideo)]);
+  await Promise.all([camVideo ? videoReady(camVideo) : null, cam2Video ? videoReady(cam2Video) : null, videoReady(screenVideo)]);
 
   const s = displayStream.getVideoTracks()[0].getSettings();
   let W = s.width || screenVideo.videoWidth || 1920;
@@ -398,9 +414,10 @@ async function startCompositor() {
 function stopCompositor() {
   compositing = false;
   if (timerWorker) { timerWorker.postMessage({ cmd: 'stop' }); timerWorker.terminate(); timerWorker = null; }
-  [camVideo, screenVideo].forEach((v) => { if (v) { v.srcObject = null; v.remove(); } });
-  camVideo = screenVideo = null;
+  [camVideo, cam2Video, screenVideo].forEach((v) => { if (v) { v.srcObject = null; v.remove(); } });
+  camVideo = cam2Video = screenVideo = null;
   if (camStream) { camStream.getTracks().forEach((t) => t.stop()); camStream = null; }
+  if (cam2Stream) { cam2Stream.getTracks().forEach((t) => t.stop()); cam2Stream = null; }
   if (canvasStream) { canvasStream.getTracks().forEach((t) => t.stop()); canvasStream = null; }
 }
 
@@ -426,40 +443,61 @@ function drawContain(v, x, y, w, h) {
 function drawFrame() {
   if (!compositing || !ctx2d) return;
   const W = el.canvas.width, H = el.canvas.height;
-  const L = el.layout.value, mirror = el.mirror.checked;
-  ctx2d.fillStyle = '#0d1620';
-  ctx2d.fillRect(0, 0, W, H);
+  const L = el.layout.value, mirror = el.mirror.checked, hasCam = !!camVideo;
+  if (!bgOn()) { ctx2d.fillStyle = '#0d1620'; ctx2d.fillRect(0, 0, W, H); }
 
-  if (L === 'camera') {
-    drawCover(camVideo, 0, 0, W, H, mirror);
-  } else if (L === 'side') {
-    const camW = Math.round(W * 0.3);
-    drawContain(screenVideo, 0, 0, W - camW, H);
+  if (hasCam && L === 'camera') { drawCover(camVideo, 0, 0, W, H, mirror); return; }
+  if (hasCam && L === 'meeting') {
+    const gap = Math.max(8, Math.round(W * 0.012)), tileW = Math.floor((W-gap)/2);
+    // Decorative individual backdrop panels; this does not remove/segment the camera background.
+    const colors = ['#253b68','#653b67'];
+    [0,1].forEach(i => { const x=i*(tileW+gap); ctx2d.fillStyle=colors[i]; ctx2d.fillRect(x,0,tileW,H); });
+    drawCover(camVideo, 0, 0, tileW, H, mirror);
+    if (cam2Video) drawCover(cam2Video, tileW+gap, 0, W-tileW-gap, H, false);
+    else { ctx2d.fillStyle='#1b1e5a'; ctx2d.fillRect(tileW+gap,0,W-tileW-gap,H); ctx2d.fillStyle='#fff'; ctx2d.font=`${Math.max(18,Math.round(H*.035))}px sans-serif`; ctx2d.textAlign='center'; ctx2d.fillText('Second camera unavailable',tileW+gap+(W-tileW-gap)/2,H/2); }
+    return;
+  }
+
+  const side = hasCam && L === 'side';
+  const camW = Math.round(W * 0.3);
+  drawScreenIn({ x: 0, y: 0, w: side ? W - camW : W, h: H });
+
+  if (side) {
     drawCover(camVideo, W - camW, 0, camW, H, mirror);
-  } else {
-    drawContain(screenVideo, 0, 0, W, H);
+  } else if (hasCam) {
     const d = Math.round(H * (L === 'big' ? 0.44 : 0.26));
     const bw = el.shape.value === 'circle' ? d : Math.round(d * 1.33);
     const m = Math.round(W * 0.02);
     const pos = el.position.value;
     const x = pos.endsWith('r') ? W - bw - m : m;
     const y = pos.startsWith('b') ? H - d - m : m;
-    ctx2d.save();
-    ctx2d.beginPath();
-    if (el.shape.value === 'circle') ctx2d.arc(x + d / 2, y + d / 2, d / 2, 0, Math.PI * 2);
-    else ctx2d.roundRect(x, y, bw, d, d * 0.14);
-    ctx2d.clip();
+    const path = () => {
+      ctx2d.beginPath();
+      if (el.shape.value === 'circle') ctx2d.arc(x + d / 2, y + d / 2, d / 2, 0, Math.PI * 2);
+      else ctx2d.roundRect(x, y, bw, d, d * 0.14);
+    };
+    ctx2d.save(); path(); ctx2d.clip();
     drawCover(camVideo, x, y, bw, d, mirror);
     ctx2d.restore();
-    ctx2d.beginPath();
-    if (el.shape.value === 'circle') ctx2d.arc(x + d / 2, y + d / 2, d / 2, 0, Math.PI * 2);
-    else ctx2d.roundRect(x, y, bw, d, d * 0.14);
+    path();
     ctx2d.lineWidth = Math.max(3, W * 0.003);
     ctx2d.strokeStyle = '#ffffff';
     ctx2d.stroke();
   }
 }
 
+function drawScreenIn(area) {
+  if (!bgOn()) { drawContain(screenVideo, area.x, area.y, area.w, area.h); return; }
+  const vw = screenVideo.videoWidth, vh = screenVideo.videoHeight;
+  if (!vw || !vh) return;
+  const aspect = vw / vh;
+  ctx2d.drawImage(getBackdrop(el.canvas.width, el.canvas.height, area, aspect), 0, 0);
+  const g = frameGeom(area, aspect);
+  ctx2d.save();
+  ctx2d.beginPath(); ctx2d.roundRect(g.x, g.y, g.dw, g.dh, g.r); ctx2d.clip();
+  ctx2d.drawImage(screenVideo, g.x, g.y, g.dw, g.dh);
+  ctx2d.restore();
+}
 
 // ---------- floating always-on-top controls (so you can stop while working in VS Code etc.) ----------
 let pipWin = null, pipTime = null, pipPause = null;
@@ -846,3 +884,119 @@ document.addEventListener('langchange', () => {
   if (el.msg.textContent && !recording) say('');
   if (mode.meeting && !recording && M.lang.value.slice(0, 2) !== LANG) M.lang.value = LANG === 'ar' ? 'ar-AE' : 'en-US';
 });
+
+
+// ===================== Background (styled backdrop behind your screen) =====================
+const bgSwatches = $('bgSwatches'), bgOptions = $('bgOptions'), bgFile = $('bgFile'), bgNote = $('bgNote');
+const bgPad = $('bgPad'), bgRadius = $('bgRadius'), bgShadow = $('bgShadow'), bgUploadBtn = $('bgUploadBtn');
+const BG = { type: 'none', img: null, url: null, imgId: 0 };
+const BG_PRESETS = {
+  violet: ['#7c5cff', '#1b1e5a'], sunset: ['#ff7a59', '#e8204a', '#5b3df0'], ocean: ['#0f766e', '#164e63', '#0f1226'],
+  mint: ['#4fe3a0', '#0f766e'], night: ['#0f1226', '#2a2f5e'], sand: ['#f2d7a6', '#e7a97b'], paper: ['#eef0ff', '#cfd6ff'],
+};
+function bgOn() { return BG.type !== 'none'; }
+
+function paintBg(ctx, W, H) {
+  if (BG.type === 'image' && BG.img) {
+    const iw = BG.img.width, ih = BG.img.height, sc = Math.max(W / iw, H / ih);
+    const dw = iw * sc, dh = ih * sc;
+    ctx.drawImage(BG.img, (W - dw) / 2, (H - dh) / 2, dw, dh);
+    return;
+  }
+  const stops = BG_PRESETS[BG.type] || BG_PRESETS.night;
+  const g = ctx.createLinearGradient(0, 0, W, H);
+  stops.forEach((c, i) => g.addColorStop(i / (stops.length - 1), c));
+  ctx.fillStyle = g;
+  ctx.fillRect(0, 0, W, H);
+}
+
+// Where the screen sits on the background (padding, rounded corners).
+function frameGeom(area, aspect) {
+  const pad = Math.round(Math.min(area.w, area.h) * (+bgPad.value) / 100);
+  const iw = area.w - 2 * pad, ih = area.h - 2 * pad;
+  let dw = iw, dh = dw / aspect;
+  if (dh > ih) { dh = ih; dw = dh * aspect; }
+  return { x: area.x + pad + (iw - dw) / 2, y: area.y + pad + (ih - dh) / 2, dw, dh, r: dh * (+bgRadius.value) / 400 };
+}
+function paintShadow(ctx, g) {
+  ctx.save();
+  if (bgShadow.checked) { ctx.shadowColor = 'rgba(0,0,0,.5)'; ctx.shadowBlur = g.dh * 0.05; ctx.shadowOffsetY = g.dh * 0.02; }
+  ctx.fillStyle = '#000';
+  ctx.beginPath(); ctx.roundRect(g.x, g.y, g.dw, g.dh, g.r); ctx.fill();
+  ctx.restore();
+}
+// Background + shadow are drawn once and reused for every frame (blurs are too slow to repeat 30 times a second).
+let backdrop = null, backdropKey = '';
+function getBackdrop(W, H, area, aspect) {
+  const key = [W, H, area.x, area.y, area.w, area.h, aspect.toFixed(4), BG.type, BG.imgId, bgPad.value, bgRadius.value, bgShadow.checked].join('|');
+  if (backdrop && key === backdropKey) return backdrop;
+  backdrop = backdrop || document.createElement('canvas');
+  backdrop.width = W; backdrop.height = H;
+  const c = backdrop.getContext('2d');
+  paintBg(c, W, H);
+  paintShadow(c, frameGeom(area, aspect));
+  backdropKey = key;
+  return backdrop;
+}
+// Used for the idle preview.
+function styledFrame(ctx, area, aspect, inner) {
+  const g = frameGeom(area, aspect);
+  paintShadow(ctx, g);
+  ctx.save();
+  ctx.beginPath(); ctx.roundRect(g.x, g.y, g.dw, g.dh, g.r); ctx.clip();
+  inner(g.x, g.y, g.dw, g.dh);
+  ctx.restore();
+}
+
+// Idle preview: shows how the background will look before you record.
+function refreshBgPreview() {
+  if (recording || compositing || el.start.hidden || el.start.disabled || !el.result.hidden) return;
+  if (!bgOn()) { el.screen.classList.remove('has-canvas', 'has-video'); return; }
+  el.canvas.width = 960; el.canvas.height = 540;
+  const ctx = el.canvas.getContext('2d');
+  paintBg(ctx, 960, 540);
+  styledFrame(ctx, { x: 0, y: 0, w: 960, h: 540 }, 16 / 9, (x, y, w, h) => {
+    ctx.fillStyle = '#0d1620'; ctx.fillRect(x, y, w, h);
+    ctx.fillStyle = '#1b2238'; ctx.fillRect(x, y, w, h * 0.07);
+    ['#ff5f57', '#febc2e', '#28c840'].forEach((c, i) => { ctx.fillStyle = c; ctx.beginPath(); ctx.arc(x + w * 0.03 + i * w * 0.025, y + h * 0.035, h * 0.013, 0, 6.283); ctx.fill(); });
+    ctx.fillStyle = 'rgba(238,240,255,.16)';
+    [0.16, 0.24, 0.32, 0.40].forEach((f, i) => ctx.fillRect(x + w * 0.05, y + h * (f + 0.04), w * (0.55 - i * 0.07), h * 0.03));
+  });
+  el.screen.classList.add('has-canvas', 'has-video');
+}
+
+function selectBg(type) {
+  BG.type = type;
+  bgSwatches.querySelectorAll('.sw').forEach((b) => {
+    const on = b.dataset.bg === type;
+    b.classList.toggle('on', on);
+    b.setAttribute('aria-pressed', String(on));
+  });
+  bgOptions.hidden = type === 'none';
+  bgNote.hidden = true;
+  refreshBgPreview();
+}
+bgSwatches.addEventListener('click', (e) => {
+  const b = e.target.closest('.sw');
+  if (!b || b.disabled) return;
+  if (b.dataset.bg === 'image') { bgFile.click(); return; }
+  selectBg(b.dataset.bg);
+});
+bgFile.addEventListener('change', async () => {
+  const f = bgFile.files[0];
+  bgFile.value = '';
+  if (!f) return;
+  try {
+    const img = await createImageBitmap(f);
+    BG.img = img; BG.imgId++;
+    if (BG.url) URL.revokeObjectURL(BG.url);
+    BG.url = URL.createObjectURL(f);
+    bgUploadBtn.style.backgroundImage = `url("${BG.url}")`;
+    bgUploadBtn.textContent = '';
+    selectBg('image');
+  } catch (_) {
+    bgNote.textContent = t('bg.badimage');
+    bgNote.hidden = false;
+  }
+});
+[bgPad, bgRadius, bgShadow].forEach((n) => n.addEventListener('input', refreshBgPreview));
