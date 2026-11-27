@@ -10,14 +10,14 @@ const el = {
   start: $('start'), live: $('live'), pause: $('pause'), stop: $('stop'),
   result: $('result'), download: $('download'), discard: $('discard'), settings: $('settings'),
   camera: $('camera'), camOptions: $('camOptions'), layout: $('layout'), position: $('position'),
-  shape: $('shape'), mirror: $('mirror'), canvas: $('composite'),
+  shape: $('shape'), mirror: $('mirror'), cameraLook: $('cameraLook'), backgroundMode: $('backgroundMode'), bgColor: $('bgColor'), bgColorField: $('bgColorField'), bgImage: $('bgImage'), bgImageField: $('bgImageField'), bgHint: $('bgHint'), canvas: $('composite'),
   posField: $('posField'), shapeField: $('shapeField'),
   source: $('source'), floatBtn: $('floatBtn'),
   isolation: $('isolation'), micOptions: $('micOptions'), meterWrap: $('meterWrap'), meterBar: $('meterBar'),
 };
 
 const FORMATS = [
-  { label: 'WebM (VP9)', mime: 'video/webm;codecs=vp9,opus', ext: 'webm' },
+  { label: 'WebM (VP9) – recommended', mime: 'video/webm;codecs=vp9,opus', ext: 'webm' },
   { label: 'WebM (VP8)', mime: 'video/webm;codecs=vp8,opus', ext: 'webm' },
   { label: 'MP4 (H.264)', mime: 'video/mp4;codecs=avc1,mp4a.40.2', ext: 'mp4' },
   { label: 'MP4 (H.264)', mime: 'video/mp4', ext: 'mp4' },
@@ -29,8 +29,9 @@ let displayStream = null, micStream = null, audioCtx = null, recorder = null;
 let chunks = [], bytes = 0, fileHandle = null, writable = null, writeChain = Promise.resolve();
 let startedAt = 0, pausedTotal = 0, pausedAt = 0, timer = null, blobUrl = null, currentExt = 'webm';
 let recording = false, paused = false;
-let camStream = null, camVideo = null, cam2Stream = null, cam2Video = null, screenVideo = null, canvasStream = null, ctx2d = null;
+let camStream = null, camVideo = null, screenVideo = null, canvasStream = null, ctx2d = null;
 let compositing = false, timerWorker = null;
+let selfieSegmentation = null, latestMask = null, bgBitmap = null, bgImageUrl = null, personCanvas = null, personCtx = null, maskCanvas = null, maskCtx = null, segmentationBusy = false;
 
 // ---------- setup ----------
 (function init() {
@@ -44,12 +45,9 @@ let compositing = false, timerWorker = null;
     o.value = f.mime; o.textContent = f.label; o.dataset.ext = f.ext;
     el.format.appendChild(o);
   }
-  if (!el.format.options.length) say(t('msg.novideo'), true);
+  if (!el.format.options.length) say('This browser cannot record video.', true);
   if (!window.showSaveFilePicker) el.diskGroup.hidden = true;
-  if (!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia) {
-    $('unsupported').hidden = false;
-    el.start.disabled = true;
-  }
+  if (el.backgroundMode) { el.backgroundMode.addEventListener('change', updateBackgroundFields); el.bgImage.addEventListener('change', loadBackgroundImage); updateBackgroundFields(); }
 })();
 
 function say(text, isError = false) {
@@ -80,11 +78,11 @@ el.pickFile.addEventListener('click', async () => {
       suggestedName: `recording-${stamp()}.${ext}`,
       types: [{ description: 'Video', accept: { [mime.split(';')[0]]: ['.' + ext] } }],
     });
-    el.pickFile.textContent = t('pick.set', { name: fileHandle.name });
+    el.pickFile.textContent = 'Saving to: ' + fileHandle.name;
     el.pickFile.classList.add('set');
-    say(t('msg.disk'));
+    say('Recording will be written directly to that file.');
   } catch (e) {
-    if (e.name !== 'AbortError') say(t('msg.fileerr', { m: e.message }), true);
+    if (e.name !== 'AbortError') say('Could not open that file: ' + e.message, true);
   }
 });
 
@@ -127,17 +125,19 @@ async function startRecording() {
           },
         });
       } catch (e) {
-        say(t('msg.micblocked'), true);
+        say('Microphone blocked, recording without it.', true);
         el.mic.checked = false;
       }
     }
 
-    stopCamTest();
-    if (el.camera.checked || bgOn()) {
+    if (el.camera.checked) {
       try {
         await startCompositor();
       } catch (e) {
         stopCompositor();
+        say('Camera unavailable (' + (e.message || e.name) + '). Recording screen only.', true);
+        el.camera.checked = false;
+        el.camOptions.hidden = true;
       }
     }
     if (compositing) {
@@ -169,13 +169,13 @@ async function startRecording() {
       if (!e.data || !e.data.size) return;
       bytes += e.data.size;
       if (writable) {
-        writeChain = writeChain.then(() => writable.write(e.data)).catch((err) => say(t('msg.diskfail', { m: err.message }), true));
+        writeChain = writeChain.then(() => writable.write(e.data)).catch((err) => say('Disk write failed: ' + err.message, true));
       } else {
         chunks.push(e.data);
       }
     };
     recorder.onstop = finalize;
-    recorder.onerror = (e) => say(t('msg.recerr', { m: e.error?.message || 'unknown' }), true);
+    recorder.onerror = (e) => say('Recorder error: ' + (e.error?.message || 'unknown'), true);
 
     displayStream.getVideoTracks()[0].addEventListener('ended', () => stopRecording());
 
@@ -185,14 +185,12 @@ async function startRecording() {
     timer = setInterval(tick, 250);
     setUI('recording');
     notifyBackground();
-    say(t('msg.recording'));
-    meetingOnStart();
+    say('Recording. You can switch to other tabs and windows; keep this tab open.');
   } catch (e) {
     cleanupStreams();
     el.screen.classList.remove('has-video');
     el.start.disabled = false;
-    refreshBgPreview();
-    say(e.name === 'NotAllowedError' ? t('msg.cancelled') : t('msg.startfail', { m: e.message }), e.name !== 'NotAllowedError');
+    say(e.name === 'NotAllowedError' ? 'Screen sharing was cancelled.' : 'Could not start: ' + e.message, e.name !== 'NotAllowedError');
   }
 }
 
@@ -208,9 +206,8 @@ async function buildStream() {
     if (sysTracks.length) audioCtx.createMediaStreamSource(new MediaStream(sysTracks)).connect(dest);
     if (micTracks.length) await connectMic(new MediaStream(micTracks), dest);
     audioTracks = dest.stream.getAudioTracks();
-    mixedTrack = audioTracks[0] || null;
   } else if (el.sysAudio.checked) {
-    say(t('msg.noaudio'));
+    say('No audio was shared. Tick "Share audio" in the picker to capture sound.');
   }
   return new MediaStream([...videoTracks, ...audioTracks]);
 }
@@ -220,7 +217,7 @@ function runCountdown() {
     let n = 3;
     const tickCount = () => {
       if (n === 0) { resolve(); return; }
-      say(t('msg.countdown', { n }));
+      say(`Starting in ${n}…`);
       n--;
       setTimeout(tickCount, 1000);
     };
@@ -232,14 +229,14 @@ function runCountdown() {
 el.pause.addEventListener('click', () => {
   if (!recorder) return;
   if (!paused) {
-    recorder.pause(); paused = true; pausedAt = Date.now(); meetingOnPause(true);
-    el.pause.textContent = t('resume');
-    el.badge.classList.add('paused'); el.badgeText.textContent = t('badge.paused');
+    recorder.pause(); paused = true; pausedAt = Date.now();
+    el.pause.textContent = 'Resume';
+    el.badge.classList.add('paused'); el.badgeText.textContent = 'PAUSED';
     syncFloat();
   } else {
-    recorder.resume(); paused = false; pausedTotal += Date.now() - pausedAt; meetingOnPause(false);
-    el.pause.textContent = t('pause');
-    el.badge.classList.remove('paused'); el.badgeText.textContent = t('badge.rec');
+    recorder.resume(); paused = false; pausedTotal += Date.now() - pausedAt;
+    el.pause.textContent = 'Pause';
+    el.badge.classList.remove('paused'); el.badgeText.textContent = 'REC';
     syncFloat();
   }
   notifyBackground();
@@ -259,7 +256,6 @@ function tick() {
 
 async function finalize() {
   clearInterval(timer);
-  meetingOnStop();
   closeFloat();
   tick();
   recording = false; paused = false;
@@ -272,12 +268,12 @@ async function finalize() {
     try {
       await writeChain;
       await writable.close();
-      say(t('msg.savedto', { name: fileHandle.name, size: fmtSize(bytes) }));
+      say(`Saved to ${fileHandle.name} (${fmtSize(bytes)}).`);
     } catch (e) {
-      say(t('msg.finishfail', { m: e.message }), true);
+      say('Could not finish the file: ' + e.message, true);
     }
     writable = null; fileHandle = null;
-    el.pickFile.textContent = t('pick');
+    el.pickFile.textContent = 'Save straight to a file';
     el.pickFile.classList.remove('set');
     setUI('idle');
     return;
@@ -295,7 +291,7 @@ async function finalize() {
   el.download.href = blobUrl;
   el.download.download = `recording-${stamp()}.${currentExt}`;
   setUI('done');
-  say(t('msg.finished', { time: fmtTime(elapsed()), size: fmtSize(blob.size) }));
+  say(`Finished: ${fmtTime(elapsed())}, ${fmtSize(blob.size)}.`);
 }
 
 el.discard.addEventListener('click', () => {
@@ -320,18 +316,15 @@ function cleanupStreams() {
 function setUI(mode) {
   document.body.classList.toggle('recording', mode === 'recording');
   const idle = mode === 'idle';
-  if (idle && el.camera.checked && !camTestStream) startCamTest();
-  if (idle) refreshBgPreview();
   el.start.hidden = !idle;
   el.start.disabled = !idle;
   el.live.hidden = mode !== 'recording';
   el.floatBtn.hidden = mode !== 'recording' || !window.documentPictureInPicture;
   el.badge.hidden = mode !== 'recording';
-  el.badge.classList.remove('paused'); el.badgeText.textContent = t('badge.rec');
-  el.pause.textContent = t('pause');
+  el.badge.classList.remove('paused'); el.badgeText.textContent = 'REC';
+  el.pause.textContent = 'Pause';
   el.result.hidden = mode !== 'done';
-  el.settings.querySelectorAll('input,select').forEach((i) => (i.disabled = !idle && !i.closest('#camOptions') && i.id !== 'speechLang' && i.id !== 'meetTitle' && !(compositing && i.closest('#bgOptions'))));
-  bgSwatches.querySelectorAll('button').forEach((b) => (b.disabled = !idle && !compositing));
+  el.settings.querySelectorAll('input,select').forEach((i) => (i.disabled = !idle && !i.closest('#camOptions')));
   el.pickFile.disabled = !idle;
 }
 
@@ -370,29 +363,13 @@ function videoReady(v) {
 }
 
 async function startCompositor() {
-  if (el.camera.checked) {
-    try {
-      camStream = await navigator.mediaDevices.getUserMedia({
-        video: { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: 'user' },
-        audio: false,
-      });
-      camVideo = hiddenVideo(camStream);
-      if (el.layout.value === 'meeting') {
-        try {
-          cam2Stream = await navigator.mediaDevices.getUserMedia({ video: { width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false });
-          cam2Video = hiddenVideo(cam2Stream);
-        } catch (secondErr) { console.warn('Second camera unavailable; meeting layout will use first camera and placeholder.', secondErr); }
-      }
-    } catch (e) {
-      camFail(e);
-      el.camera.checked = false;
-      el.camOptions.hidden = true;
-      camStream = null; camVideo = null;
-      if (!bgOn()) throw e;
-    }
-  }
+  camStream = await navigator.mediaDevices.getUserMedia({
+    video: { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: 'user' },
+    audio: false,
+  });
+  camVideo = hiddenVideo(camStream);
   screenVideo = hiddenVideo(displayStream);
-  await Promise.all([camVideo ? videoReady(camVideo) : null, cam2Video ? videoReady(cam2Video) : null, videoReady(screenVideo)]);
+  await Promise.all([videoReady(camVideo), videoReady(screenVideo)]);
 
   const s = displayStream.getVideoTracks()[0].getSettings();
   let W = s.width || screenVideo.videoWidth || 1920;
@@ -403,21 +380,39 @@ async function startCompositor() {
   el.canvas.height = H - (H % 2);
   ctx2d = el.canvas.getContext('2d', { alpha: false });
   canvasStream = el.canvas.captureStream(Number(el.fps.value));
-
+  personCanvas = document.createElement('canvas'); personCanvas.width = camVideo.videoWidth; personCanvas.height = camVideo.videoHeight;
+  personCtx = personCanvas.getContext('2d');
+  maskCanvas = document.createElement('canvas'); maskCanvas.width = camVideo.videoWidth; maskCanvas.height = camVideo.videoHeight;
+  maskCtx = maskCanvas.getContext('2d');
+  const needsMask = el.backgroundMode && el.backgroundMode.value !== 'none';
+  if (needsMask) {
+    if (!window.SelfieSegmentation) throw new Error('Background segmentation library did not load. Check your internet connection or choose Original background.');
+    selfieSegmentation = new SelfieSegmentation({ locateFile: (file) => `https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation/${file}` });
+    selfieSegmentation.setOptions({ modelSelection: 1, selfieMode: true });
+    selfieSegmentation.onResults((results) => { latestMask = results.segmentationMask; segmentationBusy = false; });
+  }
   compositing = true;
-  timerWorker = new Worker('timer-worker.js');
-  timerWorker.onmessage = drawFrame;
-  timerWorker.postMessage({ cmd: 'start', interval: Math.round(1000 / Number(el.fps.value)) });
-  drawFrame();
+  const frameDelay = Math.max(16, Math.round(1000 / Number(el.fps.value)));
+  const drawLoop = async () => {
+    if (!compositing) return;
+    if (selfieSegmentation && !segmentationBusy && camVideo.readyState >= 2) {
+      segmentationBusy = true;
+      try { await selfieSegmentation.send({ image: camVideo }); } catch (_) { segmentationBusy = false; }
+    }
+    drawFrame();
+    setTimeout(drawLoop, frameDelay);
+  };
+  drawLoop();
 }
 
 function stopCompositor() {
   compositing = false;
   if (timerWorker) { timerWorker.postMessage({ cmd: 'stop' }); timerWorker.terminate(); timerWorker = null; }
-  [camVideo, cam2Video, screenVideo].forEach((v) => { if (v) { v.srcObject = null; v.remove(); } });
-  camVideo = cam2Video = screenVideo = null;
+  if (selfieSegmentation) { selfieSegmentation.close().catch(()=>{}); selfieSegmentation = null; }
+  latestMask = null; personCanvas = personCtx = maskCanvas = maskCtx = null; segmentationBusy = false;
+  [camVideo, screenVideo].forEach((v) => { if (v) { v.srcObject = null; v.remove(); } });
+  camVideo = screenVideo = null;
   if (camStream) { camStream.getTracks().forEach((t) => t.stop()); camStream = null; }
-  if (cam2Stream) { cam2Stream.getTracks().forEach((t) => t.stop()); cam2Stream = null; }
   if (canvasStream) { canvasStream.getTracks().forEach((t) => t.stop()); canvasStream = null; }
 }
 
@@ -440,68 +435,95 @@ function drawContain(v, x, y, w, h) {
   ctx2d.drawImage(v, x + (w - dw) / 2, y + (h - dh) / 2, dw, dh);
 }
 
+function updateBackgroundFields() {
+  if (!el.backgroundMode) return;
+  el.bgColorField.hidden = el.backgroundMode.value !== 'color';
+  el.bgImageField.hidden = el.backgroundMode.value !== 'image';
+  const needsSeg = el.backgroundMode.value !== 'none';
+  el.bgHint.textContent = needsSeg ? 'Person-aware background effects run locally in your browser. The first use downloads the segmentation model.' : 'Your original camera background will be kept.';
+}
+async function loadBackgroundImage() {
+  const file = el.bgImage.files && el.bgImage.files[0]; if (!file) return;
+  if (bgImageUrl) URL.revokeObjectURL(bgImageUrl);
+  bgImageUrl = URL.createObjectURL(file);
+  const img = new Image(); img.src = bgImageUrl;
+  try { await img.decode(); bgBitmap = img; say('Custom background image loaded.'); }
+  catch (_) { say('Could not load that image.', true); }
+}
+function drawSegmentedCamera(x, y, w, h, mirror) {
+  if (!latestMask || !personCanvas || !personCtx || !maskCtx) { drawCameraCover(x,y,w,h,mirror); return; }
+  const mode = el.backgroundMode.value;
+  const pw = personCanvas.width, ph = personCanvas.height;
+  personCtx.clearRect(0,0,pw,ph); personCtx.drawImage(camVideo,0,0,pw,ph);
+  maskCtx.clearRect(0,0,pw,ph); maskCtx.drawImage(latestMask,0,0,pw,ph);
+  personCtx.globalCompositeOperation = 'destination-in'; personCtx.drawImage(maskCanvas,0,0); personCtx.globalCompositeOperation='source-over';
+  const bg = document.createElement('canvas');
+  // Reuse one small background canvas to avoid allocating a canvas per frame.
+  if (!drawSegmentedCamera.bgCanvas) { drawSegmentedCamera.bgCanvas=document.createElement('canvas'); drawSegmentedCamera.bgCtx=drawSegmentedCamera.bgCanvas.getContext('2d'); }
+  const bc=drawSegmentedCamera.bgCanvas; bc.width=pw; bc.height=ph; const bctx=drawSegmentedCamera.bgCtx;
+  bctx.save();
+  if (mode==='blur') { bctx.filter='blur(22px)'; bctx.drawImage(camVideo,-18,-18,pw+36,ph+36); }
+  else if (mode==='image' && bgBitmap) { bctx.drawImage(bgBitmap,0,0,pw,ph); }
+  else if (mode==='office') { bctx.fillStyle='#d7e1e8';bctx.fillRect(0,0,pw,ph);bctx.fillStyle='#b2c4d2';bctx.fillRect(pw*.08,ph*.12,pw*.34,ph*.48);bctx.fillStyle='#71899b';bctx.fillRect(pw*.1,ph*.14,pw*.30,ph*.43);bctx.fillStyle='#8b9eaa';bctx.fillRect(pw*.55,ph*.16,pw*.34,ph*.84); }
+  else if (mode==='studio') { bctx.fillStyle='#202b43';bctx.fillRect(0,0,pw,ph);const g=bctx.createRadialGradient(pw*.5,ph*.35,20,pw*.5,ph*.35,pw*.7);g.addColorStop(0,'#66758f');g.addColorStop(1,'#111827');bctx.fillStyle=g;bctx.fillRect(0,0,pw,ph); }
+  else if (mode==='beach') { const g=bctx.createLinearGradient(0,0,0,ph);g.addColorStop(0,'#54b7df');g.addColorStop(.58,'#d2e8dc');g.addColorStop(.59,'#e6c58d');g.addColorStop(1,'#b98d5a');bctx.fillStyle=g;bctx.fillRect(0,0,pw,ph);bctx.fillStyle='#fff3';bctx.beginPath();bctx.arc(pw*.78,ph*.2,ph*.1,0,Math.PI*2);bctx.fill(); }
+  else if (mode==='color') { bctx.fillStyle=el.bgColor.value;bctx.fillRect(0,0,pw,ph); }
+  else { bctx.drawImage(camVideo,0,0,pw,ph); }
+  bctx.restore();
+  ctx2d.save();
+  if (mirror) { ctx2d.translate(x+w,y);ctx2d.scale(-1,1);ctx2d.drawImage(bc,0,0,w,h);ctx2d.drawImage(personCanvas,0,0,w,h); }
+  else { ctx2d.drawImage(bc,x,y,w,h);ctx2d.drawImage(personCanvas,x,y,w,h); }
+  ctx2d.restore();
+}
+
+function drawCameraCover(x, y, w, h, mirror) {
+  const look = el.cameraLook?.value || 'none';
+  ctx2d.save();
+  if (look === 'soft') ctx2d.filter = 'blur(1.2px)';
+  else if (look === 'mono') ctx2d.filter = 'grayscale(1)';
+  else if (look === 'warm') ctx2d.filter = 'sepia(.22) saturate(1.18)';
+  if (el.backgroundMode && el.backgroundMode.value !== 'none') drawSegmentedCamera(x, y, w, h, mirror);
+  else drawCover(camVideo, x, y, w, h, mirror);
+  ctx2d.restore();
+}
+
 function drawFrame() {
   if (!compositing || !ctx2d) return;
   const W = el.canvas.width, H = el.canvas.height;
-  const L = el.layout.value, mirror = el.mirror.checked, hasCam = !!camVideo;
-  if (!bgOn()) { ctx2d.fillStyle = '#0d1620'; ctx2d.fillRect(0, 0, W, H); }
+  const L = el.layout.value, mirror = el.mirror.checked;
+  ctx2d.fillStyle = '#0d1620';
+  ctx2d.fillRect(0, 0, W, H);
 
-  if (hasCam && L === 'camera') { drawCover(camVideo, 0, 0, W, H, mirror); return; }
-  if (hasCam && L === 'meeting') {
-    const gap = Math.max(8, Math.round(W * 0.012)), tileW = Math.floor((W-gap)/2);
-    // Decorative individual backdrop panels; this does not remove/segment the camera background.
-    const colors = ['#253b68','#653b67'];
-    [0,1].forEach(i => { const x=i*(tileW+gap); ctx2d.fillStyle=colors[i]; ctx2d.fillRect(x,0,tileW,H); });
-    drawCover(camVideo, 0, 0, tileW, H, mirror);
-    if (cam2Video) drawCover(cam2Video, tileW+gap, 0, W-tileW-gap, H, false);
-    else { ctx2d.fillStyle='#1b1e5a'; ctx2d.fillRect(tileW+gap,0,W-tileW-gap,H); ctx2d.fillStyle='#fff'; ctx2d.font=`${Math.max(18,Math.round(H*.035))}px sans-serif`; ctx2d.textAlign='center'; ctx2d.fillText('Second camera unavailable',tileW+gap+(W-tileW-gap)/2,H/2); }
-    return;
-  }
-
-  // Group meeting mode records the shared meeting tab/window as the main canvas.
-  // This preserves the remote participants' gallery exactly as rendered by Meet/Zoom/Teams,
-  // instead of pretending that remote participant cameras are locally accessible.
-  const groupMeeting = L === 'group';
-  const side = hasCam && L === 'side';
-  const camW = Math.round(W * 0.3);
-  drawScreenIn({ x: 0, y: 0, w: side ? W - camW : W, h: H });
-
-  if (side) {
-    drawCover(camVideo, W - camW, 0, camW, H, mirror);
-  } else if (hasCam) {
-    const d = Math.round(H * (L === 'group' ? 0.34 : (L === 'big' ? 0.44 : 0.26)));
-    const bw = (L === 'group' || el.shape.value !== 'circle') ? Math.round(d * 1.33) : d;
+  if (L === 'camera') {
+    drawCameraCover(0, 0, W, H, mirror);
+  } else if (L === 'side') {
+    const camW = Math.round(W * 0.3);
+    drawContain(screenVideo, 0, 0, W - camW, H);
+    drawCameraCover(W - camW, 0, camW, H, mirror);
+  } else {
+    drawContain(screenVideo, 0, 0, W, H);
+    const d = Math.round(H * (L === 'big' ? 0.44 : 0.26));
+    const bw = el.shape.value === 'circle' ? d : Math.round(d * 1.33);
     const m = Math.round(W * 0.02);
     const pos = el.position.value;
     const x = pos.endsWith('r') ? W - bw - m : m;
     const y = pos.startsWith('b') ? H - d - m : m;
-    const path = () => {
-      ctx2d.beginPath();
-      if (L !== 'group' && el.shape.value === 'circle') ctx2d.arc(x + d / 2, y + d / 2, d / 2, 0, Math.PI * 2);
-      else ctx2d.roundRect(x, y, bw, d, d * 0.14);
-    };
-    ctx2d.save(); path(); ctx2d.clip();
-    drawCover(camVideo, x, y, bw, d, mirror);
+    ctx2d.save();
+    ctx2d.beginPath();
+    if (el.shape.value === 'circle') ctx2d.arc(x + d / 2, y + d / 2, d / 2, 0, Math.PI * 2);
+    else ctx2d.roundRect(x, y, bw, d, d * 0.14);
+    ctx2d.clip();
+    drawCameraCover(x, y, bw, d, mirror);
     ctx2d.restore();
-    path();
+    ctx2d.beginPath();
+    if (el.shape.value === 'circle') ctx2d.arc(x + d / 2, y + d / 2, d / 2, 0, Math.PI * 2);
+    else ctx2d.roundRect(x, y, bw, d, d * 0.14);
     ctx2d.lineWidth = Math.max(3, W * 0.003);
     ctx2d.strokeStyle = '#ffffff';
     ctx2d.stroke();
   }
 }
 
-function drawScreenIn(area) {
-  if (!bgOn()) { drawContain(screenVideo, area.x, area.y, area.w, area.h); return; }
-  const vw = screenVideo.videoWidth, vh = screenVideo.videoHeight;
-  if (!vw || !vh) return;
-  const aspect = vw / vh;
-  ctx2d.drawImage(getBackdrop(el.canvas.width, el.canvas.height, area, aspect), 0, 0);
-  const g = frameGeom(area, aspect);
-  ctx2d.save();
-  ctx2d.beginPath(); ctx2d.roundRect(g.x, g.y, g.dw, g.dh, g.r); ctx2d.clip();
-  ctx2d.drawImage(screenVideo, g.x, g.y, g.dw, g.dh);
-  ctx2d.restore();
-}
 
 // ---------- floating always-on-top controls (so you can stop while working in VS Code etc.) ----------
 let pipWin = null, pipTime = null, pipPause = null;
@@ -511,11 +533,10 @@ el.floatBtn.addEventListener('click', async () => {
   try {
     pipWin = await documentPictureInPicture.requestWindow({ width: 280, height: 120 });
   } catch (e) {
-    say(t('msg.floatfail', { m: e.message }), true);
+    say('Floating controls are not available: ' + e.message, true);
     return;
   }
   const d = pipWin.document;
-  d.documentElement.lang = LANG; d.documentElement.dir = LANG === 'ar' ? 'rtl' : 'ltr';
   const style = d.createElement('style');
   style.textContent = `
     body{margin:0;padding:12px;background:#0f1226;color:#eef0ff;font-family:system-ui,"Segoe UI",sans-serif;display:grid;gap:10px}
@@ -527,26 +548,26 @@ el.floatBtn.addEventListener('click', async () => {
   d.head.appendChild(style);
   pipTime = d.createElement('div'); pipTime.className = 't';
   const row = d.createElement('div'); row.className = 'r';
-  pipPause = d.createElement('button'); pipPause.textContent = t('pause');
-  const stopB = d.createElement('button'); stopB.textContent = t('stop'); stopB.className = 's';
+  pipPause = d.createElement('button'); pipPause.textContent = 'Pause';
+  const stopB = d.createElement('button'); stopB.textContent = 'Stop and save'; stopB.className = 's';
   pipPause.addEventListener('click', () => el.pause.click());
   stopB.addEventListener('click', () => stopRecording());
   row.append(pipPause, stopB);
   d.body.append(pipTime, row);
-  pipWin.addEventListener('pagehide', () => { pipWin = null; pipTime = pipPause = null; el.floatBtn.textContent = t('float'); });
-  el.floatBtn.textContent = t('float.close');
+  pipWin.addEventListener('pagehide', () => { pipWin = null; pipTime = pipPause = null; el.floatBtn.textContent = 'Floating controls (stay on top)'; });
+  el.floatBtn.textContent = 'Close floating controls';
   syncFloat();
 });
 
 function syncFloat() {
   if (!pipWin || !pipTime) return;
   pipTime.textContent = fmtTime(elapsed());
-  pipPause.textContent = paused ? t('resume') : t('pause');
+  pipPause.textContent = paused ? 'Resume' : 'Pause';
 }
 function closeFloat() {
   if (pipWin) { try { pipWin.close(); } catch (_) {} }
   pipWin = null; pipTime = pipPause = null;
-  el.floatBtn.textContent = t('float');
+  el.floatBtn.textContent = 'Floating controls (stay on top)';
 }
 
 
@@ -571,7 +592,7 @@ async function connectMic(stream, dest) {
       const gate = new AudioWorkletNode(audioCtx, 'voice-gate');
       node.connect(gate); node = gate;
     } catch (e) {
-      say(t('msg.gate'), true);
+      say('Noise gate unavailable; using filters only.', true);
     }
     const comp = audioCtx.createDynamicsCompressor();
     comp.threshold.value = -26; comp.knee.value = 12; comp.ratio.value = 3;
@@ -610,397 +631,8 @@ $('editBtn').addEventListener('click', async () => {
   if (!lastBlob) return;
   try {
     await ClipStore.put('latest', lastBlob);
-    window.open(new URL('editor.html?clip=latest', location.href).href, '_blank');
+    window.open(new URL('editor.html?clip=latest', window.location.href).href, '_blank', 'noopener');
   } catch (e) {
-    say(t('msg.editfail', { m: e.message }), true);
+    say('Could not open the editor: ' + e.message, true);
   }
 });
-
-
-// ---------- camera test preview (see your face before you record) ----------
-const camTest = $('camLive'), camNote = $('camNote');
-let camTestStream = null;
-
-function applyMirror() { camTest.style.transform = el.mirror.checked ? 'scaleX(-1)' : 'none'; }
-el.mirror.addEventListener('change', applyMirror);
-
-el.camera.addEventListener('change', () => {
-  camNote.hidden = true;
-  if (el.camera.checked) startCamTest(); else stopCamTest();
-});
-
-async function startCamTest() {
-  stopCamTest();
-  try {
-    camTestStream = await navigator.mediaDevices.getUserMedia({
-      video: { width: { ideal: 640 }, height: { ideal: 480 }, facingMode: 'user' },
-      audio: false,
-    });
-    camTest.srcObject = camTestStream;
-    camTest.classList.add('on');
-    applyMirror();
-    camTest.play().catch(() => {});
-  } catch (e) {
-    camFail(e);
-    el.camera.checked = false;
-    syncCamUI();
-  }
-}
-function stopCamTest() {
-  if (camTestStream) { camTestStream.getTracks().forEach((t) => t.stop()); camTestStream = null; }
-  camTest.srcObject = null;
-  camTest.classList.remove('on');
-}
-function camFail(e) {
-  let msg;
-  if (e.name === 'NotAllowedError' || e.name === 'PermissionDeniedError') {
-    const extId = typeof chrome !== 'undefined' && chrome.runtime && chrome.runtime.id;
-    msg = extId
-      ? t('cam.blocked.ext', { url: 'chrome://settings/content/siteDetails?site=chrome-extension%3A%2F%2F' + extId })
-      : t('cam.blocked.web');
-  } else if (e.name === 'NotFoundError') {
-    msg = t('cam.notfound');
-  } else if (e.name === 'NotReadableError') {
-    msg = t('cam.busy');
-  } else {
-    msg = t('cam.other', { m: e.message || e.name });
-  }
-  camNote.textContent = msg;
-  camNote.hidden = false;
-}
-
-
-// ===================== Meeting mode =====================
-const mode = { meeting: false, presetApplied: false };
-const M = {
-  title: $('meetTitle'), lang: $('speechLang'), on: $('transcribeOn'),
-  panel: $('meetingPanel'), section: $('meetSection'),
-  transcript: $('transcript'), tEmpty: $('transcriptEmpty'),
-  noteType: $('noteType'), noteText: $('noteText'), noteAdd: $('noteAdd'), noteList: $('noteList'), markBtn: $('markBtn'),
-  modeScreen: $('modeScreen'), modeMeeting: $('modeMeeting'), result: $('meetResult'),
-  dlMin: $('dlMinutes'), dlSrt: $('dlSrt'), copy: $('copyMinutes'),
-};
-let mixedTrack = null;
-let lines = [], items = [], meetStart = 0, meetDurMs = 0;
-let sr = null, srWanted = false, interimEl = null;
-const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-
-function setMode(meeting) {
-  mode.meeting = meeting;
-  document.body.classList.toggle('meeting-mode', meeting);
-  M.modeScreen.classList.toggle('on', !meeting);
-  M.modeMeeting.classList.toggle('on', meeting);
-  M.modeScreen.setAttribute('aria-pressed', String(!meeting));
-  M.modeMeeting.setAttribute('aria-pressed', String(meeting));
-  M.panel.hidden = !meeting;
-  M.section.hidden = !meeting;
-  M.result.hidden = true;
-  el.start.textContent = t(meeting ? 'start.meeting' : 'start');
-  if (meeting && !mode.presetApplied) {
-    mode.presetApplied = true;
-    // Sensible defaults for calls: capture a tab with its sound plus your microphone.
-    el.source.value = 'browser'; el.sysAudio.checked = true;
-    el.mic.checked = true; el.micOptions.hidden = false;
-    el.quality.value = '720'; el.fps.value = '30'; el.countdown.checked = false;
-    M.lang.value = LANG === 'ar' ? 'ar-AE' : 'en-US';
-  }
-}
-M.modeScreen.addEventListener('click', () => { if (!recording) setMode(false); });
-M.modeMeeting.addEventListener('click', () => { if (!recording) setMode(true); });
-if (new URLSearchParams(location.search).get('mode') === 'meeting') setMode(true);
-
-// ---------- helpers ----------
-const hms = (ms) => fmtTime(ms);
-function saveText(name, text, type) {
-  const blob = new Blob(['\ufeff' + text], { type: type + ';charset=utf-8' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url; a.download = name;
-  document.body.appendChild(a); a.click(); a.remove();
-  setTimeout(() => URL.revokeObjectURL(url), 2000);
-}
-const safeName = (s) => (s || 'meeting').replace(/[\\/:*?"<>|]+/g, ' ').trim().slice(0, 60) || 'meeting';
-
-// ---------- transcript ----------
-function addLine(text) {
-  const ms = Math.max(0, elapsed());
-  lines.push({ ms, text, lang: M.lang.value });
-  if (interimEl) { interimEl.remove(); interimEl = null; }
-  M.tEmpty.hidden = true;
-  const p = document.createElement('p');
-  p.className = 'line';
-  const ts = document.createElement('span'); ts.className = 'ts'; ts.textContent = hms(ms);
-  const tx = document.createElement('span'); tx.className = 'tx'; tx.dir = 'auto'; tx.textContent = text;
-  p.append(ts, tx);
-  M.transcript.appendChild(p);
-  M.transcript.scrollTop = M.transcript.scrollHeight;
-}
-function showInterim(text) {
-  if (!text) { if (interimEl) { interimEl.remove(); interimEl = null; } return; }
-  if (!interimEl) {
-    interimEl = document.createElement('p'); interimEl.className = 'line interim';
-    const ts = document.createElement('span'); ts.className = 'ts'; ts.textContent = '…';
-    const tx = document.createElement('span'); tx.className = 'tx'; tx.dir = 'auto';
-    interimEl.append(ts, tx);
-    M.transcript.appendChild(interimEl);
-  }
-  interimEl.querySelector('.tx').textContent = text;
-  M.transcript.scrollTop = M.transcript.scrollHeight;
-}
-function launchSR() {
-  if (!SR) return;
-  sr = new SR();
-  sr.continuous = true; sr.interimResults = true; sr.maxAlternatives = 1; sr.lang = M.lang.value;
-  sr.onresult = (e) => {
-    let interim = '';
-    for (let i = e.resultIndex; i < e.results.length; i++) {
-      const r = e.results[i], tx = r[0].transcript.trim();
-      if (r.isFinal) { if (tx) addLine(tx); } else interim += tx + ' ';
-    }
-    showInterim(interim.trim());
-  };
-  sr.onerror = (e) => {
-    if (e.error === 'not-allowed' || e.error === 'service-not-allowed') { srWanted = false; say(t('meet.srdenied'), true); }
-    else if (e.error === 'network') { srWanted = false; say(t('meet.srnet'), true); }
-  };
-  sr.onend = () => {
-    showInterim('');
-    if (srWanted && recording && !paused) setTimeout(() => { if (srWanted && recording && !paused) launchSR(); }, 250);
-  };
-  try {
-    // Newer Chrome can listen to the mixed meeting audio; older versions ignore the argument and use the microphone.
-    if (mixedTrack && mixedTrack.readyState === 'live') sr.start(mixedTrack); else sr.start();
-  } catch (_) {
-    try { sr.start(); } catch (__) {}
-  }
-}
-function stopSR() {
-  srWanted = false;
-  if (sr) { try { sr.stop(); } catch (_) {} sr = null; }
-  showInterim('');
-}
-M.lang.addEventListener('change', () => {
-  if (srWanted && recording && !paused) { if (sr) { try { sr.abort(); } catch (_) {} } }
-});
-
-// ---------- notes ----------
-function addItem(type, text) {
-  items.push({ ms: Math.max(0, elapsed()), type, text });
-  renderItems();
-}
-function renderItems() {
-  M.noteList.innerHTML = '';
-  items.forEach((it, idx) => {
-    const li = document.createElement('li');
-    li.className = 'note ' + it.type;
-    const ts = document.createElement('span'); ts.className = 'ts'; ts.textContent = hms(it.ms);
-    const tag = document.createElement('span'); tag.className = 'tag'; tag.textContent = t('note.' + it.type);
-    const tx = document.createElement('span'); tx.className = 'tx'; tx.dir = 'auto'; tx.textContent = it.text || '';
-    const rm = document.createElement('button'); rm.type = 'button'; rm.className = 'x'; rm.textContent = '×';
-    rm.setAttribute('aria-label', t('note.remove'));
-    rm.addEventListener('click', () => { items.splice(idx, 1); renderItems(); });
-    li.append(ts, tag, tx, rm);
-    M.noteList.appendChild(li);
-  });
-}
-function submitNote() {
-  const text = M.noteText.value.trim();
-  if (!text) return;
-  addItem(M.noteType.value, text);
-  M.noteText.value = '';
-}
-M.noteAdd.addEventListener('click', submitNote);
-M.noteText.addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); submitNote(); } });
-M.markBtn.addEventListener('click', () => { if (recording) addItem('moment', ''); });
-document.addEventListener('keydown', (e) => {
-  if (!mode.meeting || !recording) return;
-  if (['input', 'textarea', 'select'].includes((e.target.tagName || '').toLowerCase())) return;
-  if (e.key === 'm' || e.key === 'M') addItem('moment', '');
-});
-
-// ---------- lifecycle hooks (called from the recorder code above) ----------
-function meetingOnStart() {
-  if (!mode.meeting) return;
-  lines = []; items = []; meetStart = Date.now(); meetDurMs = 0;
-  M.transcript.querySelectorAll('.line').forEach((n) => n.remove());
-  M.tEmpty.hidden = false; renderItems(); M.result.hidden = true;
-  if (M.on.checked) {
-    if (!SR) say(t('meet.nosr'), true);
-    else { srWanted = true; launchSR(); }
-  }
-}
-function meetingOnPause(isPaused) {
-  if (!mode.meeting || !srWanted) return;
-  if (isPaused) { if (sr) { try { sr.stop(); } catch (_) {} } }
-  else launchSR();
-}
-function meetingOnStop() {
-  if (!mode.meeting) return;
-  meetDurMs = Math.max(0, elapsed());
-  stopSR();
-  M.result.hidden = !(lines.length || items.length);
-}
-
-// ---------- minutes + captions ----------
-function buildMinutes() {
-  const title = M.title.value.trim() || t('min.untitled');
-  const when = new Date(meetStart || Date.now()).toLocaleString(LANG === 'ar' ? 'ar-AE' : 'en-GB');
-  let md = `# ${title}\n\n${when} · ${t('min.duration')}: ${hms(meetDurMs)}\n\n`;
-  const section = (type, head, fmtItem) => {
-    const arr = items.filter((i) => i.type === type);
-    if (!arr.length) return;
-    md += `## ${head}\n\n` + arr.map(fmtItem).join('\n') + '\n\n';
-  };
-  section('action', t('min.actions'), (i) => `- [ ] [${hms(i.ms)}] ${i.text}`);
-  section('decision', t('min.decisions'), (i) => `- [${hms(i.ms)}] ${i.text}`);
-  section('note', t('min.notes'), (i) => `- [${hms(i.ms)}] ${i.text}`);
-  section('moment', t('min.moments'), (i) => `- [${hms(i.ms)}] ${i.text || t('note.moment')}`);
-  if (lines.length) md += `## ${t('min.transcript')}\n\n` + lines.map((l) => `[${hms(l.ms)}] ${l.text}`).join('\n\n') + '\n';
-  return md;
-}
-function srtTime(ms) {
-  const h = Math.floor(ms / 3600000), m = Math.floor((ms % 3600000) / 60000), s = Math.floor((ms % 60000) / 1000), x = Math.floor(ms % 1000);
-  const p = (n, w = 2) => String(n).padStart(w, '0');
-  return `${p(h)}:${p(m)}:${p(s)},${p(x, 3)}`;
-}
-function buildSrt() {
-  return lines.map((l, i) => {
-    const next = lines[i + 1] ? lines[i + 1].ms - 20 : l.ms + 4000;
-    const end = Math.max(Math.min(next, l.ms + 8000), l.ms + 200);
-    return `${i + 1}\n${srtTime(l.ms)} --> ${srtTime(end)}\n${l.text}\n`;
-  }).join('\n');
-}
-M.dlMin.addEventListener('click', () => saveText(safeName(M.title.value) + '-minutes.md', buildMinutes(), 'text/markdown'));
-M.dlSrt.addEventListener('click', () => saveText(safeName(M.title.value) + '.srt', buildSrt(), 'application/x-subrip'));
-M.copy.addEventListener('click', async () => {
-  try { await navigator.clipboard.writeText(buildMinutes()); say(t('copied')); } catch (_) {}
-});
-
-// ---------- language switch: refresh text that scripts set ----------
-document.addEventListener('langchange', () => {
-  el.start.textContent = t(mode.meeting ? 'start.meeting' : 'start');
-  el.pause.textContent = paused ? t('resume') : t('pause');
-  el.badgeText.textContent = paused ? t('badge.paused') : t('badge.rec');
-  el.pickFile.textContent = fileHandle ? t('pick.set', { name: fileHandle.name }) : t('pick');
-  el.floatBtn.textContent = pipWin ? t('float.close') : t('float');
-  syncFloat();
-  renderItems();
-  if (el.msg.textContent && !recording) say('');
-  if (mode.meeting && !recording && M.lang.value.slice(0, 2) !== LANG) M.lang.value = LANG === 'ar' ? 'ar-AE' : 'en-US';
-});
-
-
-// ===================== Background (styled backdrop behind your screen) =====================
-const bgSwatches = $('bgSwatches'), bgOptions = $('bgOptions'), bgFile = $('bgFile'), bgNote = $('bgNote');
-const bgPad = $('bgPad'), bgRadius = $('bgRadius'), bgShadow = $('bgShadow'), bgUploadBtn = $('bgUploadBtn');
-const BG = { type: 'none', img: null, url: null, imgId: 0 };
-const BG_PRESETS = {
-  violet: ['#7c5cff', '#1b1e5a'], sunset: ['#ff7a59', '#e8204a', '#5b3df0'], ocean: ['#0f766e', '#164e63', '#0f1226'],
-  mint: ['#4fe3a0', '#0f766e'], night: ['#0f1226', '#2a2f5e'], sand: ['#f2d7a6', '#e7a97b'], paper: ['#eef0ff', '#cfd6ff'],
-};
-function bgOn() { return BG.type !== 'none'; }
-
-function paintBg(ctx, W, H) {
-  if (BG.type === 'image' && BG.img) {
-    const iw = BG.img.width, ih = BG.img.height, sc = Math.max(W / iw, H / ih);
-    const dw = iw * sc, dh = ih * sc;
-    ctx.drawImage(BG.img, (W - dw) / 2, (H - dh) / 2, dw, dh);
-    return;
-  }
-  const stops = BG_PRESETS[BG.type] || BG_PRESETS.night;
-  const g = ctx.createLinearGradient(0, 0, W, H);
-  stops.forEach((c, i) => g.addColorStop(i / (stops.length - 1), c));
-  ctx.fillStyle = g;
-  ctx.fillRect(0, 0, W, H);
-}
-
-// Where the screen sits on the background (padding, rounded corners).
-function frameGeom(area, aspect) {
-  const pad = Math.round(Math.min(area.w, area.h) * (+bgPad.value) / 100);
-  const iw = area.w - 2 * pad, ih = area.h - 2 * pad;
-  let dw = iw, dh = dw / aspect;
-  if (dh > ih) { dh = ih; dw = dh * aspect; }
-  return { x: area.x + pad + (iw - dw) / 2, y: area.y + pad + (ih - dh) / 2, dw, dh, r: dh * (+bgRadius.value) / 400 };
-}
-function paintShadow(ctx, g) {
-  ctx.save();
-  if (bgShadow.checked) { ctx.shadowColor = 'rgba(0,0,0,.5)'; ctx.shadowBlur = g.dh * 0.05; ctx.shadowOffsetY = g.dh * 0.02; }
-  ctx.fillStyle = '#000';
-  ctx.beginPath(); ctx.roundRect(g.x, g.y, g.dw, g.dh, g.r); ctx.fill();
-  ctx.restore();
-}
-// Background + shadow are drawn once and reused for every frame (blurs are too slow to repeat 30 times a second).
-let backdrop = null, backdropKey = '';
-function getBackdrop(W, H, area, aspect) {
-  const key = [W, H, area.x, area.y, area.w, area.h, aspect.toFixed(4), BG.type, BG.imgId, bgPad.value, bgRadius.value, bgShadow.checked].join('|');
-  if (backdrop && key === backdropKey) return backdrop;
-  backdrop = backdrop || document.createElement('canvas');
-  backdrop.width = W; backdrop.height = H;
-  const c = backdrop.getContext('2d');
-  paintBg(c, W, H);
-  paintShadow(c, frameGeom(area, aspect));
-  backdropKey = key;
-  return backdrop;
-}
-// Used for the idle preview.
-function styledFrame(ctx, area, aspect, inner) {
-  const g = frameGeom(area, aspect);
-  paintShadow(ctx, g);
-  ctx.save();
-  ctx.beginPath(); ctx.roundRect(g.x, g.y, g.dw, g.dh, g.r); ctx.clip();
-  inner(g.x, g.y, g.dw, g.dh);
-  ctx.restore();
-}
-
-// Idle preview: shows how the background will look before you record.
-function refreshBgPreview() {
-  if (recording || compositing || el.start.hidden || el.start.disabled || !el.result.hidden) return;
-  if (!bgOn()) { el.screen.classList.remove('has-canvas', 'has-video'); return; }
-  el.canvas.width = 960; el.canvas.height = 540;
-  const ctx = el.canvas.getContext('2d');
-  paintBg(ctx, 960, 540);
-  styledFrame(ctx, { x: 0, y: 0, w: 960, h: 540 }, 16 / 9, (x, y, w, h) => {
-    ctx.fillStyle = '#0d1620'; ctx.fillRect(x, y, w, h);
-    ctx.fillStyle = '#1b2238'; ctx.fillRect(x, y, w, h * 0.07);
-    ['#ff5f57', '#febc2e', '#28c840'].forEach((c, i) => { ctx.fillStyle = c; ctx.beginPath(); ctx.arc(x + w * 0.03 + i * w * 0.025, y + h * 0.035, h * 0.013, 0, 6.283); ctx.fill(); });
-    ctx.fillStyle = 'rgba(238,240,255,.16)';
-    [0.16, 0.24, 0.32, 0.40].forEach((f, i) => ctx.fillRect(x + w * 0.05, y + h * (f + 0.04), w * (0.55 - i * 0.07), h * 0.03));
-  });
-  el.screen.classList.add('has-canvas', 'has-video');
-}
-
-function selectBg(type) {
-  BG.type = type;
-  bgSwatches.querySelectorAll('.sw').forEach((b) => {
-    const on = b.dataset.bg === type;
-    b.classList.toggle('on', on);
-    b.setAttribute('aria-pressed', String(on));
-  });
-  bgOptions.hidden = type === 'none';
-  bgNote.hidden = true;
-  refreshBgPreview();
-}
-bgSwatches.addEventListener('click', (e) => {
-  const b = e.target.closest('.sw');
-  if (!b || b.disabled) return;
-  if (b.dataset.bg === 'image') { bgFile.click(); return; }
-  selectBg(b.dataset.bg);
-});
-bgFile.addEventListener('change', async () => {
-  const f = bgFile.files[0];
-  bgFile.value = '';
-  if (!f) return;
-  try {
-    const img = await createImageBitmap(f);
-    BG.img = img; BG.imgId++;
-    if (BG.url) URL.revokeObjectURL(BG.url);
-    BG.url = URL.createObjectURL(f);
-    bgUploadBtn.style.backgroundImage = `url("${BG.url}")`;
-    bgUploadBtn.textContent = '';
-    selectBg('image');
-  } catch (_) {
-    bgNote.textContent = t('bg.badimage');
-    bgNote.hidden = false;
-  }
-});
-[bgPad, bgRadius, bgShadow].forEach((n) => n.addEventListener('input', refreshBgPreview));

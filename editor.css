@@ -67,10 +67,3 @@ button.tool.danger { color: #ff8aa0; }
 .text-item label { font-size: .8rem; color: var(--mist); display: grid; gap: 3px; }
 .text-item input[type="color"] { width: 100%; height: 34px; border: 1px solid var(--edge); border-radius: 8px; background: var(--midnight); padding: 2px; }
 .text-item .rm { padding: 7px 12px; font-size: .85rem; color: #ff8aa0; background: transparent; border-color: var(--edge); }
-
-[dir="rtl"] .text-item .rm { justify-self: start; }
-.text-item select { width: 100%; }
-
-.clock { display: flex; align-items: baseline; gap: 8px; }
-.clock .of { margin-inline: 2px; }
-.field { grid-template-columns: 124px minmax(0, 1fr); }
