@@ -94,3 +94,29 @@ body.in-call .call { margin-top: 8px; gap: 10px; }
 .tile.pinned { aspect-ratio: auto; border-color: var(--signal); }
 @media (max-width: 960px) { .grid { height: calc(100vh - 300px); } }
 :fullscreen body, body:fullscreen { background: var(--midnight); }
+
+
+/* Mobile meeting experience */
+@media (max-width: 700px) {
+  body.in-call { padding: max(8px, env(safe-area-inset-top)) max(10px, env(safe-area-inset-right)) max(14px, env(safe-area-inset-bottom)) max(10px, env(safe-area-inset-left)); }
+  .lobby { margin-top: 14px; }
+  .lobby-card { grid-template-columns: minmax(0,1fr); gap: 16px; }
+  .lobby-form { gap: 12px; }
+  .join-row { grid-template-columns: minmax(0,1fr); }
+  .join-row button { width: 100%; }
+  .call { gap: 10px; }
+  .call-top { gap: 8px; }
+  .call-body, .call.no-side .call-body { grid-template-columns: minmax(0,1fr); }
+  .grid { height: auto; min-height: 0; max-height: none; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 8px; align-content: start; }
+  .grid.spotlight { max-height: 55dvh; overflow-y: auto; }
+  .tile { min-width: 0; border-radius: 12px; }
+  .tile .name { max-width: calc(100% - 16px); overflow-wrap: anywhere; font-size: .75rem; }
+  .side { min-width: 0; }
+  .tabpanel { min-height: 220px; padding: 10px; }
+  .chat-log { height: min(32dvh, 240px); }
+  .controls { position: sticky; bottom: max(6px, env(safe-area-inset-bottom)); z-index: 10; display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 7px; padding: 10px; background: rgba(13,16,32,.94); border: 1px solid var(--edge); border-radius: 16px; backdrop-filter: blur(12px); }
+  .controls .cbtn { min-width: 0; width: 100%; padding: 9px 4px; font-size: .68rem; }
+  .controls .cbtn svg { width: 22px; height: 22px; }
+  .ended-card { width: 100%; padding: 18px; }
+}
+@media (max-width: 380px) { .grid { grid-template-columns: minmax(0,1fr); } .controls { grid-template-columns: repeat(3,minmax(0,1fr)); } }
