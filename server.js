@@ -8,7 +8,7 @@ const path = require('path');
 
 const PORT = process.env.PORT || 8080;
 const ROOT = __dirname;
-const MAX_PEOPLE = 20;
+const MAX_PEOPLE = 50;
 let ICE = [{ urls: 'stun:stun.l.google.com:19302' }];
 try { if (process.env.ICE_SERVERS) ICE = JSON.parse(process.env.ICE_SERVERS); } catch (e) { console.error('ICE_SERVERS is not valid JSON, using default'); }
 
