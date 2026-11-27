@@ -1,0 +1,11 @@
+{
+  "extName": {
+    "message": "Screen Recorder"
+  },
+  "extDesc": {
+    "message": "Record your screen, browser tab, or app window with audio."
+  },
+  "actionTitle": {
+    "message": "Open Screen Recorder"
+  }
+}
