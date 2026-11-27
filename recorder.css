@@ -325,3 +325,42 @@ input[type="range"] { width: 100%; accent-color: var(--signal); margin: 0; }
 .sw.none { background: var(--midnight); color: var(--mist); }
 .sw.upload { background: var(--midnight) center / cover no-repeat; font-size: 1.5rem; color: var(--signal-lit); line-height: 1; }
 .sw:disabled { opacity: .5; cursor: not-allowed; }
+
+
+/* iPhone / small-screen layout fixes */
+html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+body { min-width: 0; min-height: 100vh; min-height: 100dvh; overflow-x: hidden; padding-bottom: max(16px, env(safe-area-inset-bottom)); }
+img, video, canvas, svg { max-width: 100%; }
+input, select, textarea, button { font: inherit; }
+button, a, input, select { touch-action: manipulation; }
+@media (max-width: 700px) {
+  body { padding-left: max(14px, env(safe-area-inset-left)); padding-right: max(14px, env(safe-area-inset-right)); }
+  .top { grid-template-columns: minmax(0,1fr); gap: 8px; padding-top: max(18px, env(safe-area-inset-top)); }
+  .top h1 { font-size: clamp(1.45rem, 7vw, 2rem); line-height: 1.15; }
+  .top p { font-size: .9rem; }
+  .topbar { grid-column: 1; grid-row: auto; display: flex; flex-wrap: wrap; gap: 8px; width: 100%; }
+  .topbar .nav { flex: 1 1 auto; min-width: 0; padding: 10px 12px; text-align: center; }
+  .layout { grid-template-columns: minmax(0,1fr) !important; gap: 14px; }
+  .stage, .panel, .settings, .sec, .meeting, .m-col { min-width: 0; }
+  .screen { width: 100%; max-width: 100%; }
+  .readout { gap: 12px; flex-wrap: wrap; }
+  .actions, .settings { width: 100%; }
+  .controls, .meeting-controls { gap: 8px; }
+  .controls > *, .meeting-controls > * { min-width: 0; }
+  .row { grid-template-columns: 1fr 1fr; }
+  .source-grid { grid-template-columns: repeat(2, minmax(0,1fr)); }
+  .field { grid-template-columns: minmax(0,1fr) !important; gap: 6px; }
+  .note-form { grid-template-columns: minmax(0,1fr); }
+  .note-form select, .note-form button { width: 100%; }
+  .m-head { align-items: stretch; }
+  .m-head .tool { width: 100%; }
+  .transcript { max-height: 34vh; }
+  .swatches { grid-template-columns: repeat(5, minmax(0,1fr)); }
+  button, .link, select, input:not([type="checkbox"]):not([type="radio"]):not([type="range"]) { min-height: 44px; }
+  input[type="range"] { min-height: 28px; }
+}
+@media (max-width: 380px) {
+  .row { grid-template-columns: 1fr; }
+  .source-grid { grid-template-columns: 1fr 1fr; }
+  .topbar .nav { font-size: .85rem; }
+}
