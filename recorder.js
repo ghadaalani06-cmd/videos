@@ -29,7 +29,7 @@ let displayStream = null, micStream = null, audioCtx = null, recorder = null;
 let chunks = [], bytes = 0, fileHandle = null, writable = null, writeChain = Promise.resolve();
 let startedAt = 0, pausedTotal = 0, pausedAt = 0, timer = null, blobUrl = null, currentExt = 'webm';
 let recording = false, paused = false;
-let camStream = null, camVideo = null, cam2Stream = null, cam2Video = null, screenVideo = null, canvasStream = null, ctx2d = null;
+let camStream = null, camVideo = null, screenVideo = null, canvasStream = null, ctx2d = null;
 let compositing = false, timerWorker = null;
 
 // ---------- setup ----------
@@ -377,12 +377,6 @@ async function startCompositor() {
         audio: false,
       });
       camVideo = hiddenVideo(camStream);
-      if (el.layout.value === 'meeting') {
-        try {
-          cam2Stream = await navigator.mediaDevices.getUserMedia({ video: { width: { ideal: 1280 }, height: { ideal: 720 } }, audio: false });
-          cam2Video = hiddenVideo(cam2Stream);
-        } catch (secondErr) { console.warn('Second camera unavailable; meeting layout will use first camera and placeholder.', secondErr); }
-      }
     } catch (e) {
       camFail(e);
       el.camera.checked = false;
@@ -392,7 +386,7 @@ async function startCompositor() {
     }
   }
   screenVideo = hiddenVideo(displayStream);
-  await Promise.all([camVideo ? videoReady(camVideo) : null, cam2Video ? videoReady(cam2Video) : null, videoReady(screenVideo)]);
+  await Promise.all([camVideo ? videoReady(camVideo) : null, videoReady(screenVideo)]);
 
   const s = displayStream.getVideoTracks()[0].getSettings();
   let W = s.width || screenVideo.videoWidth || 1920;
@@ -414,10 +408,9 @@ async function startCompositor() {
 function stopCompositor() {
   compositing = false;
   if (timerWorker) { timerWorker.postMessage({ cmd: 'stop' }); timerWorker.terminate(); timerWorker = null; }
-  [camVideo, cam2Video, screenVideo].forEach((v) => { if (v) { v.srcObject = null; v.remove(); } });
-  camVideo = cam2Video = screenVideo = null;
+  [camVideo, screenVideo].forEach((v) => { if (v) { v.srcObject = null; v.remove(); } });
+  camVideo = screenVideo = null;
   if (camStream) { camStream.getTracks().forEach((t) => t.stop()); camStream = null; }
-  if (cam2Stream) { cam2Stream.getTracks().forEach((t) => t.stop()); cam2Stream = null; }
   if (canvasStream) { canvasStream.getTracks().forEach((t) => t.stop()); canvasStream = null; }
 }
 
@@ -447,21 +440,7 @@ function drawFrame() {
   if (!bgOn()) { ctx2d.fillStyle = '#0d1620'; ctx2d.fillRect(0, 0, W, H); }
 
   if (hasCam && L === 'camera') { drawCover(camVideo, 0, 0, W, H, mirror); return; }
-  if (hasCam && L === 'meeting') {
-    const gap = Math.max(8, Math.round(W * 0.012)), tileW = Math.floor((W-gap)/2);
-    // Decorative individual backdrop panels; this does not remove/segment the camera background.
-    const colors = ['#253b68','#653b67'];
-    [0,1].forEach(i => { const x=i*(tileW+gap); ctx2d.fillStyle=colors[i]; ctx2d.fillRect(x,0,tileW,H); });
-    drawCover(camVideo, 0, 0, tileW, H, mirror);
-    if (cam2Video) drawCover(cam2Video, tileW+gap, 0, W-tileW-gap, H, false);
-    else { ctx2d.fillStyle='#1b1e5a'; ctx2d.fillRect(tileW+gap,0,W-tileW-gap,H); ctx2d.fillStyle='#fff'; ctx2d.font=`${Math.max(18,Math.round(H*.035))}px sans-serif`; ctx2d.textAlign='center'; ctx2d.fillText('Second camera unavailable',tileW+gap+(W-tileW-gap)/2,H/2); }
-    return;
-  }
 
-  // Group meeting mode records the shared meeting tab/window as the main canvas.
-  // This preserves the remote participants' gallery exactly as rendered by Meet/Zoom/Teams,
-  // instead of pretending that remote participant cameras are locally accessible.
-  const groupMeeting = L === 'group';
   const side = hasCam && L === 'side';
   const camW = Math.round(W * 0.3);
   drawScreenIn({ x: 0, y: 0, w: side ? W - camW : W, h: H });
@@ -469,15 +448,15 @@ function drawFrame() {
   if (side) {
     drawCover(camVideo, W - camW, 0, camW, H, mirror);
   } else if (hasCam) {
-    const d = Math.round(H * (L === 'group' ? 0.34 : (L === 'big' ? 0.44 : 0.26)));
-    const bw = (L === 'group' || el.shape.value !== 'circle') ? Math.round(d * 1.33) : d;
+    const d = Math.round(H * (L === 'big' ? 0.44 : 0.26));
+    const bw = el.shape.value === 'circle' ? d : Math.round(d * 1.33);
     const m = Math.round(W * 0.02);
     const pos = el.position.value;
     const x = pos.endsWith('r') ? W - bw - m : m;
     const y = pos.startsWith('b') ? H - d - m : m;
     const path = () => {
       ctx2d.beginPath();
-      if (L !== 'group' && el.shape.value === 'circle') ctx2d.arc(x + d / 2, y + d / 2, d / 2, 0, Math.PI * 2);
+      if (el.shape.value === 'circle') ctx2d.arc(x + d / 2, y + d / 2, d / 2, 0, Math.PI * 2);
       else ctx2d.roundRect(x, y, bw, d, d * 0.14);
     };
     ctx2d.save(); path(); ctx2d.clip();
