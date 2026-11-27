@@ -74,3 +74,15 @@ button.tool.danger { color: #ff8aa0; }
 .clock { display: flex; align-items: baseline; gap: 8px; }
 .clock .of { margin-inline: 2px; }
 .field { grid-template-columns: 124px minmax(0, 1fr); }
+
+
+/* Touch-friendly video editor on phones */
+@media (max-width: 700px) {
+  .transport, .tl-tools { gap: 8px; }
+  .transport > button, .tl-tools > button { flex: 1 1 auto; min-width: 0; }
+  .clock { font-size: 1.05rem; }
+  .timeline { height: 76px; margin-inline: 2px; touch-action: pan-y; }
+  .seg { font-size: .68rem; padding-inline: 4px; }
+  .text-item .two { grid-template-columns: minmax(0,1fr); }
+  .field { grid-template-columns: minmax(0,1fr) !important; }
+}
