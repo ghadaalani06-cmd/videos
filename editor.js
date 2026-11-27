@@ -70,12 +70,12 @@ document.addEventListener('drop', (e) => {
   try {
     const blob = await ClipStore.get(clip);
     if (blob) loadBlob(blob, 'recording');
-    else say('That recording is no longer available. Open a file instead.', true);
-  } catch (e) { say('Could not open the recording: ' + e.message, true); }
+    else say(t('ed.clipgone'), true);
+  } catch (e) { say(t('ed.openfail', { m: e.message }), true); }
 })();
 
 async function loadBlob(blob, name) {
-  say('Loading video…');
+  say(t('ed.loading'));
   el.result.hidden = true;
   if (srcUrl) URL.revokeObjectURL(srcUrl);
   srcUrl = URL.createObjectURL(blob);
@@ -84,7 +84,7 @@ async function loadBlob(blob, name) {
   try {
     await new Promise((res, rej) => {
       video.onloadedmetadata = res;
-      video.onerror = () => rej(new Error('This file could not be read as video.'));
+      video.onerror = () => rej(new Error(t('ed.badfile')));
     });
     if (!isFinite(video.duration)) await fixDuration();
   } catch (e) { say(e.message, true); return; }
@@ -99,7 +99,7 @@ async function loadBlob(blob, name) {
   loaded = true;
   el.screen.classList.add('has-video');
   layoutPreview(); renderTimeline(); updateButtons();
-  say(`Loaded ${vw}×${vh}, ${fmt(dur)}.`);
+  say(t('ed.loaded', { w: vw, h: vh, dur: fmt(dur) }));
 }
 
 // Recordings made by the browser often report an infinite length until you seek to the end.
@@ -137,7 +137,7 @@ const segIndexAt = (t) => segs.findIndex((s) => t >= s.start - 0.001 && t < s.en
 
 el.splitBtn.addEventListener('click', () => {
   const t = video.currentTime, i = segIndexAt(t);
-  if (i < 0 || t - segs[i].start < 0.1 || segs[i].end - t < 0.1) { say('Move the playhead inside a part (not at its edge) to split.', true); return; }
+  if (i < 0 || t - segs[i].start < 0.1 || segs[i].end - t < 0.1) { say(t('ed.splitfail'), true); return; }
   pushHistory();
   const s = segs[i];
   segs.splice(i, 1, { start: s.start, end: t }, { start: t, end: s.end });
@@ -145,7 +145,7 @@ el.splitBtn.addEventListener('click', () => {
   renderTimeline(); updateButtons();
 });
 el.delBtn.addEventListener('click', () => {
-  if (segs.length < 2) { say('Keep at least one part. Trim it instead.', true); return; }
+  if (segs.length < 2) { say(t('ed.keepone'), true); return; }
   pushHistory();
   segs.splice(sel, 1);
   sel = Math.min(sel, segs.length - 1); say('');
@@ -165,7 +165,7 @@ function renderTimeline() {
     d.style.left = (s.start / dur) * 100 + '%';
     d.style.width = ((s.end - s.start) / dur) * 100 + '%';
     d.dataset.i = i;
-    d.textContent = 'Part ' + (i + 1);
+    d.textContent = t('part', { n: i + 1 });
     if (i === sel) {
       for (const side of ['l', 'r']) {
         const h = document.createElement('div');
@@ -236,8 +236,8 @@ function togglePlay() {
     video.play();
   } else video.pause();
 }
-video.addEventListener('play', () => { el.playBtn.textContent = 'Pause'; });
-video.addEventListener('pause', () => { el.playBtn.textContent = 'Play'; });
+video.addEventListener('play', () => { el.playBtn.textContent = t('pause'); });
+video.addEventListener('pause', () => { el.playBtn.textContent = t('play'); });
 video.addEventListener('ended', () => { if (!exporting) endReached(); });
 
 function endReached() {
@@ -356,7 +356,7 @@ el.panY.addEventListener('input', () => { S.panY = el.panY.value / 100; });
 // ---------- text overlays ----------
 el.addText.addEventListener('click', () => {
   const t = video.currentTime;
-  overlays.push({ id: nextId++, text: 'Your text', start: +t.toFixed(1), end: +Math.min(t + 3, dur).toFixed(1), pos: 'bottom', size: 7, color: '#ffffff' });
+  overlays.push({ id: nextId++, text: t('txt.default'), start: +t.toFixed(1), end: +Math.min(t + 3, dur).toFixed(1), pos: 'bottom', size: 7, color: '#ffffff' });
   renderTexts();
 });
 function renderTexts() {
@@ -366,23 +366,23 @@ function renderTexts() {
     const ta = document.createElement('textarea'); ta.value = o.text; ta.setAttribute('aria-label', 'Text');
     ta.addEventListener('input', () => { o.text = ta.value; });
     const times = document.createElement('div'); times.className = 'two';
-    times.append(numField('Show from (s)', o.start, (v) => { o.start = v; }), numField('Until (s)', o.end, (v) => { o.end = v; }));
+    times.append(numField(t('txt.from'), o.start, (v) => { o.start = v; }), numField(t('txt.until'), o.end, (v) => { o.end = v; }));
     const row = document.createElement('div'); row.className = 'two';
-    const posL = document.createElement('label'); posL.textContent = 'Position';
+    const posL = document.createElement('label'); posL.textContent = t('txt.pos');
     const pos = document.createElement('select');
-    [['top', 'Top'], ['center', 'Middle'], ['bottom', 'Bottom']].forEach(([v, l]) => { const op = new Option(l, v); pos.add(op); });
+    [['top', t('top')], ['center', t('middle')], ['bottom', t('bottom')]].forEach(([v, l]) => { const op = new Option(l, v); pos.add(op); });
     pos.value = o.pos; pos.addEventListener('change', () => { o.pos = pos.value; });
     posL.appendChild(pos);
-    const colL = document.createElement('label'); colL.textContent = 'Colour';
+    const colL = document.createElement('label'); colL.textContent = t('txt.color');
     const col = document.createElement('input'); col.type = 'color'; col.value = o.color;
     col.addEventListener('input', () => { o.color = col.value; });
     colL.appendChild(col);
     row.append(posL, colL);
-    const sizeL = document.createElement('label'); sizeL.textContent = 'Size';
+    const sizeL = document.createElement('label'); sizeL.textContent = t('txt.size');
     const size = document.createElement('input'); size.type = 'range'; size.min = 3; size.max = 20; size.value = o.size;
     size.addEventListener('input', () => { o.size = Number(size.value); });
     sizeL.appendChild(size);
-    const rm = document.createElement('button'); rm.type = 'button'; rm.className = 'rm'; rm.textContent = 'Remove text';
+    const rm = document.createElement('button'); rm.type = 'button'; rm.className = 'rm'; rm.textContent = t('txt.remove');
     rm.addEventListener('click', () => { overlays = overlays.filter((x) => x !== o); renderTexts(); });
     card.append(ta, times, row, sizeL, rm);
     el.textList.appendChild(card);
@@ -404,7 +404,7 @@ el.cancelBtn.addEventListener('click', () => { cancelled = true; finishExport();
 
 async function startExport() {
   if (!loaded || exporting) return;
-  if (!el.format.options.length) { say('This browser cannot record video.', true); return; }
+  if (!el.format.options.length) { say(t('msg.novideo'), true); return; }
   video.pause();
   if (actx.state === 'suspended') await actx.resume();
   exporting = true; cancelled = false; chunks = [];
@@ -413,7 +413,7 @@ async function startExport() {
   el.exportBtn.hidden = true; el.cancelBtn.hidden = false;
   el.settings.querySelectorAll('input,select,button').forEach((n) => (n.disabled = true));
   updateButtons();
-  say('Exporting… keep this tab open.');
+  say(t('ed.exporting'));
 
   const { W, H } = outSize(true);
   exportCanvas.width = W; exportCanvas.height = H;
@@ -432,14 +432,14 @@ async function startExport() {
   recorder = new MediaRecorder(stream, { mimeType: mime, videoBitsPerSecond: bps, audioBitsPerSecond: 128000 });
   recorder.ondataavailable = (e) => { if (e.data && e.data.size) chunks.push(e.data); };
   recorder.onstop = () => {
-    if (cancelled) { say('Export cancelled.'); return; }
+    if (cancelled) { say(t('ed.cancelled')); return; }
     const blob = new Blob(chunks, { type: mime.split(';')[0] });
     if (outUrl) URL.revokeObjectURL(outUrl);
     outUrl = URL.createObjectURL(blob);
     el.download.href = outUrl;
     el.download.download = `${baseName}-edited-${stamp()}.${ext}`;
     el.result.hidden = false;
-    say(`Done. ${fmt(totalOutput())} long.`);
+    say(t('ed.done', { dur: fmt(totalOutput()) }));
   };
 
   video.currentTime = segs[0].start;
@@ -495,4 +495,12 @@ document.addEventListener('keydown', (e) => {
   else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') { e.preventDefault(); undo(); }
   else if (e.key === 'ArrowLeft') video.currentTime = Math.max(0, video.currentTime - (e.shiftKey ? 0.1 : 1));
   else if (e.key === 'ArrowRight') video.currentTime = Math.min(dur, video.currentTime + (e.shiftKey ? 0.1 : 1));
+});
+
+
+document.addEventListener('langchange', () => {
+  el.playBtn.textContent = video.paused ? t('play') : t('pause');
+  if (loaded) renderTimeline();
+  renderTexts();
+  if (el.msg.textContent && !exporting) say('');
 });

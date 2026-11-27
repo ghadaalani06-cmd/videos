@@ -1,11 +1,17 @@
-# Screen Recorder – Chrome extension
-1. Unzip this folder.
-2. Open chrome://extensions and turn on Developer mode.
-3. Click "Load unpacked" and choose the unzipped folder.
-4. Pin the extension and click its icon.
+# Screen Recorder – web app
+Plain static files. No build step and no server code.
 
-# مسجّل الشاشة – إضافة Chrome
-1. فك ضغط المجلد.
-2. افتح chrome://extensions وفعّل «وضع المطوّر».
-3. اضغط «تحميل إضافة غير مضغوطة» واختر المجلد.
-4. ثبّت الإضافة واضغط على أيقونتها.
+## Try it on your computer
+    python3 -m http.server 8080
+then open http://localhost:8080 in Chrome or Edge.
+(Screen, camera and microphone capture need HTTPS or localhost.)
+
+## Put it online (free)
+- Vercel / Netlify / Cloudflare Pages: drag this folder into the dashboard, or connect a GitHub repo. Output folder: the root. No build command.
+- GitHub Pages: upload the files to a repo and enable Pages.
+Once online over HTTPS, Chrome and Edge show an "Install app" button, and it works offline.
+
+# تطبيق ويب – مسجّل الشاشة
+ملفات ثابتة فقط، بدون بناء أو خادم.
+للتجربة محليًا: شغّل python3 -m http.server 8080 ثم افتح http://localhost:8080 في Chrome أو Edge.
+للنشر المجاني: اسحب المجلد إلى Vercel أو Netlify أو Cloudflare Pages. يجب أن يكون الموقع على HTTPS ليعمل تسجيل الشاشة والكاميرا والميكروفون.
