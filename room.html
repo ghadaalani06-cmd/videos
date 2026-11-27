@@ -46,6 +46,13 @@
           <button class="tool" id="saveServer" type="button" data-i18n="room.server.save">Save</button>
           <p class="hint" data-i18n="room.server.hint"></p>
           <p class="cam-note" id="serverNote" role="alert" hidden></p>
+          <details class="help">
+            <summary data-i18n="room.help.title">I don't have a server yet</summary>
+            <p data-i18n="room.help.local"></p>
+            <button class="tool" id="useLocal" type="button" data-i18n="room.help.local.btn">Use localhost:8080</button>
+            <p data-i18n="room.help.deploy"></p>
+            <p class="hint" data-i18n="room.help.sleep"></p>
+          </details>
         </div>
         <button class="primary" id="newMeeting" type="button" data-i18n="room.new">Start a new meeting</button>
         <div class="join-row" id="joinRow">
@@ -65,6 +72,7 @@
       <span class="people" id="peopleCount"></span>
       <span class="rec-banner" id="recBanner" role="status" hidden></span>
     </div>
+    <p class="empty-grid" id="waitHint" hidden></p>
     <div class="call-body">
       <section class="grid" id="grid" aria-label="Participants"></section>
       <aside class="side">
@@ -119,6 +127,8 @@
       <button class="cbtn" id="camBtn" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"></svg><span></span></button>
       <button class="cbtn" id="shareBtn" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"></svg><span></span></button>
       <button class="cbtn" id="recBtn" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"></svg><span></span></button>
+      <button class="cbtn" id="panelBtn" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"></svg><span></span></button>
+      <button class="cbtn" id="fsBtn" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"></svg><span></span></button>
       <button class="cbtn leave" id="leaveBtn" type="button"><svg viewBox="0 0 24 24" aria-hidden="true"></svg><span></span></button>
     </div>
     <p class="toast" id="toast" role="status" hidden></p>

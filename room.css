@@ -73,3 +73,24 @@
 .ended-card h2 { margin: 0; font-family: var(--display); }
 .rec-result { display: grid; gap: 10px; }
 .rec-result p { margin: 0; font-weight: 700; }
+
+.help { border-top: 1px solid var(--edge); padding-top: 10px; }
+.help summary { cursor: pointer; font-weight: 700; color: var(--signal-lit); }
+.help summary:focus-visible { outline: 3px solid var(--signal-lit); outline-offset: 3px; }
+.help p { margin: 10px 0 0; }
+.help button { margin-top: 8px; }
+
+/* ===== bigger video ===== */
+body.in-call { padding: 12px 16px 16px; }
+body.in-call .top p { display: none; }
+body.in-call .top h1 { font-size: 1.25rem; }
+body.in-call .call { margin-top: 8px; gap: 10px; }
+.call-body { grid-template-columns: minmax(0, 1fr) 320px; }
+.call.no-side .call-body { grid-template-columns: 1fr; }
+.call.no-side .side { display: none; }
+.grid { height: calc(100vh - 235px); min-height: 340px; gap: 10px; justify-content: center; align-content: center; }
+.grid.spotlight { overflow-y: auto; align-content: start; }
+.tile { cursor: pointer; }
+.tile.pinned { aspect-ratio: auto; border-color: var(--signal); }
+@media (max-width: 960px) { .grid { height: calc(100vh - 300px); } }
+:fullscreen body, body:fullscreen { background: var(--midnight); }

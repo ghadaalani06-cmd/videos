@@ -10,6 +10,8 @@ const rand = (n) => Array.from(crypto.getRandomValues(new Uint8Array(n)), (b) =>
 const initials = (name) => (name || '?').trim().split(/\s+/).map((w) => w[0]).slice(0, 2).join('').toUpperCase() || '?';
 
 const ICONS = {
+  panel: '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M15 4v16"/>',
+  fs: '<path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5"/>',
   mic: '<rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3"/>',
   micOff: '<rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0M12 18v3M4 4l16 16"/>',
   cam: '<rect x="3" y="6" width="13" height="12" rx="2"/><path d="M16 10l5-3v10l-5-3"/>',
@@ -56,6 +58,7 @@ async function initLobby() {
   await startLobbyMedia();
   refreshLobbyButtons();
 }
+$('useLocal').addEventListener('click', () => { $('serverUrl').value = 'http://localhost:8080'; $('saveServer').click(); });
 $('saveServer').addEventListener('click', async () => {
   let v = $('serverUrl').value.trim().replace(/\/+$/, '');
   if (v && !/^https?:\/\//i.test(v)) v = 'https://' + v;
@@ -166,15 +169,49 @@ function removePeer(id) {
   p.tile.el.remove(); peers.delete(id);
   layoutGrid(); updateCount(); syncRecAudio();
 }
+let pinnedId = null;
 function layoutGrid() {
-  const n = peers.size + 1;
-  $('grid').style.setProperty('--cols', n <= 1 ? 1 : n <= 4 ? 2 : 3);
-  let hint = $('grid').querySelector('.empty-grid');
-  if (peers.size === 0) {
-    if (!hint) { hint = document.createElement('p'); hint.className = 'empty-grid'; $('grid').appendChild(hint); }
-    hint.textContent = t('room.waiting');
-  } else if (hint) hint.remove();
+  const g = $('grid');
+  $('waitHint').hidden = peers.size > 0;
+  $('waitHint').textContent = t('room.waiting');
+  const tiles = [...g.querySelectorAll('.tile')];
+  const n = tiles.length;
+  const W = g.clientWidth, H = g.clientHeight, gap = 10;
+  if (pinnedId && !tiles.some((x) => x.dataset.id === pinnedId)) pinnedId = null;
+  tiles.forEach((x) => { x.style.height = ''; x.style.gridRow = ''; x.style.gridColumn = ''; x.style.aspectRatio = ''; x.classList.remove('pinned'); x.title = n > 1 ? t('room.spotlight') : ''; });
+  if (pinnedId && n > 1) {
+    const side = Math.round(Math.min(Math.max(W * 0.2, 150), 260));
+    g.classList.add('spotlight');
+    g.style.gridTemplateColumns = `minmax(0, 1fr) ${side}px`;
+    g.style.gridAutoRows = 'auto';
+    tiles.forEach((x) => {
+      if (x.dataset.id === pinnedId) { x.classList.add('pinned'); x.style.gridColumn = '1'; x.style.gridRow = `1 / span ${n - 1}`; x.style.height = H + 'px'; }
+      else x.style.gridColumn = '2';
+    });
+    return;
+  }
+  g.classList.remove('spotlight');
+  // Pick the number of columns that gives the biggest pictures. Tiles may be a little squarer (4:3) than wide (16:9) to use the space.
+  let best = { area: 0, w: 0, cols: 1, ar: 16 / 9 };
+  for (let cols = 1; cols <= Math.max(n, 1); cols++) {
+    const rows = Math.ceil(n / cols);
+    const cw = (W - gap * (cols - 1)) / cols, ch = (H - gap * (rows - 1)) / rows;
+    const ar = Math.min(Math.max(cw / ch, 4 / 3), 16 / 9);
+    const w = Math.min(cw, ch * ar), area = w * (w / ar);
+    if (area > best.area) best = { area, w, cols, ar };
+  }
+  g.style.gridTemplateColumns = `repeat(${best.cols}, ${Math.max(120, Math.floor(best.w))}px)`;
+  g.style.gridAutoRows = 'auto';
+  tiles.forEach((x) => { x.style.aspectRatio = String(best.ar); });
 }
+$('grid').addEventListener('click', (e) => {
+  const tile = e.target.closest('.tile');
+  if (!tile || peers.size === 0) return;
+  pinnedId = pinnedId === tile.dataset.id ? null : tile.dataset.id;
+  layoutGrid();
+});
+window.addEventListener('resize', () => { if (inCall) layoutGrid(); });
+document.addEventListener('fullscreenchange', () => { refreshControls(); if (inCall) layoutGrid(); });
 function updateCount() { $('peopleCount').textContent = t('room.people', { n: peers.size + 1 }); }
 function applyTileState(p) {
   const { mic, cam, share } = p.state;
@@ -283,6 +320,11 @@ function refreshControls() {
   setIcon($('camBtn'), camOn && hasCam ? 'cam' : 'camOff', t(camOn ? 'room.cam.on' : 'room.cam.off'));
   setIcon($('shareBtn'), 'screen', t(sharing ? 'room.share.stop' : 'room.share'));
   setIcon($('recBtn'), recording ? 'stop' : 'rec', t(recording ? 'room.rec.stop' : 'room.rec'));
+  const sideHidden = $('call').classList.contains('no-side');
+  setIcon($('panelBtn'), 'panel', t(sideHidden ? 'room.panel.show' : 'room.panel.hide'));
+  setIcon($('fsBtn'), 'fs', t(document.fullscreenElement ? 'room.fs.exit' : 'room.fs'));
+  $('panelBtn').classList.toggle('active', !sideHidden);
+  $('fsBtn').classList.toggle('active', !!document.fullscreenElement);
   setIcon($('leaveBtn'), 'leave', t('room.leave'));
   $('micBtn').classList.toggle('off', !micOn || !hasAudio);
   $('camBtn').classList.toggle('off', !camOn || !hasCam);
@@ -299,6 +341,10 @@ $('micBtn').addEventListener('click', () => {
 $('camBtn').addEventListener('click', () => {
   camOn = !camOn; if (cameraTrack()) cameraTrack().enabled = camOn;
   applyMyTile(); refreshControls(); sendState();
+});
+$('panelBtn').addEventListener('click', () => { $('call').classList.toggle('no-side'); refreshControls(); layoutGrid(); });
+$('fsBtn').addEventListener('click', () => {
+  if (document.fullscreenElement) document.exitFullscreen(); else document.documentElement.requestFullscreen().catch(() => {});
 });
 $('shareBtn').addEventListener('click', async () => {
   if (sharing) { stopShare(); return; }
