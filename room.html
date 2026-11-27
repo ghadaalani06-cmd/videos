@@ -77,19 +77,21 @@
       <section class="grid" id="grid" aria-label="Participants"></section>
       <aside class="side">
         <div class="tabs" role="tablist">
-          <button type="button" role="tab" id="tabChat" class="on" aria-selected="true" data-i18n="room.tab.chat">Chat</button>
-          <button type="button" role="tab" id="tabCaptions" aria-selected="false" data-i18n="room.tab.captions">Captions</button>
+          <button type="button" role="tab" id="tabChat" aria-selected="false" data-i18n="room.tab.chat">Chat</button>
+          <button type="button" role="tab" id="tabCaptions" class="on" aria-selected="true" data-i18n="meet.transcript">Live transcript</button>
           <button type="button" role="tab" id="tabNotes" aria-selected="false" data-i18n="room.tab.notes">Notes</button>
         </div>
-        <div class="tabpanel" id="panelChat">
+        <div class="tabpanel" id="panelChat" hidden>
           <div class="chat-log" id="chatLog" aria-live="polite"></div>
           <div class="chat-form">
             <input type="text" id="chatText" dir="auto" data-i18n-ph="room.chat.ph" placeholder="Type a message" autocomplete="off">
             <button class="tool" id="chatSend" type="button" data-i18n="room.send">Send</button>
           </div>
         </div>
-        <div class="tabpanel" id="panelCaptions" hidden>
-          <label class="switch"><input type="checkbox" id="capOn"><span data-i18n="room.captions">Share my live captions</span></label>
+        <div class="tabpanel" id="panelCaptions">
+          <h2 class="panel-heading">Live Transcript</h2>
+          <label class="switch"><input type="checkbox" id="capOn"><span>Start live transcript for my microphone</span></label>
+          <p class="hint">When enabled, your speech appears here with your name and timestamp, and is shared with other meeting participants. Each participant can enable their own transcript. Ask everyone to agree before sharing.</p>
           <div class="field">
             <label for="capLang" data-i18n="meet.lang">Speech language</label>
             <select id="capLang">
