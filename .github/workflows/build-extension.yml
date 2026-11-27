@@ -19,6 +19,7 @@ on:
       - "editor.js"
       - "editor.css"
       - "icons/**"
+      - "_locales/**"
       - ".github/workflows/build-extension.yml"
 
 jobs:
@@ -36,7 +37,10 @@ jobs:
           mkdir -p dist/screen-recorder-extension
           cp manifest.json background.js recorder.html recorder.js recorder.css i18n.js clipstore.js gate-processor.js meeting.html meeting.js meeting.css editor.html editor.js editor.css dist/screen-recorder-extension/
           cp -R icons dist/screen-recorder-extension/icons
+          cp -R _locales dist/screen-recorder-extension/_locales
           test -f dist/screen-recorder-extension/manifest.json
+          test -f dist/screen-recorder-extension/_locales/en/messages.json
+          test -f dist/screen-recorder-extension/_locales/ar/messages.json
           cd dist
           zip -r screen-recorder-extension.zip screen-recorder-extension
 
