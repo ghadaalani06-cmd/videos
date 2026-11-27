@@ -4,24 +4,34 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Screen Recorder</title>
+  <meta name="theme-color" content="#0f1226">
+  <link rel="icon" href="icons/icon32.png">
+  <link rel="apple-touch-icon" href="icons/icon128.png">
+  <link rel="manifest" href="manifest.webmanifest">
   <link rel="stylesheet" href="recorder.css">
 </head>
-<body>
+<body data-title="title.recorder">
   <header class="top">
     <span class="tally" aria-hidden="true"></span>
-    <h1>Screen Recorder</h1>
-    <p>Free. No watermark. No time limit.</p>
-    <nav class="navlinks"><a class="nav" href="meet.html" target="_blank" rel="noopener">Start / join meeting</a><a class="nav" href="editor.html" target="_blank" rel="noopener">Video editor</a></nav>
+    <h1 data-i18n="title.recorder">Screen Recorder</h1>
+    <p data-i18n="tagline">Free. No watermark. No time limit.</p>
+    <div class="topbar">
+      <a class="nav" href="editor.html" target="_blank" rel="noopener" data-i18n="nav.editor">Video editor</a>
+      <button class="nav" id="langBtn" type="button" data-i18n="nav.lang">العربية</button>
+    </div>
   </header>
+
+  <p class="banner" id="unsupported" role="alert" hidden data-i18n="unsupported.capture"></p>
 
   <main class="layout">
     <section class="stage" aria-label="Preview">
       <div class="screen" id="screen">
         <video id="preview" muted playsinline></video>
         <canvas id="composite"></canvas>
+        <video id="camLive" class="cam-live" muted playsinline></video>
         <div class="empty" id="empty">
-          <p class="empty-title">No signal</p>
-          <p>Press <strong>Start recording</strong> and pick what to capture.</p>
+          <p class="empty-title" data-i18n="empty.title">No signal</p>
+          <p data-i18n="empty.body">Press Start recording, then pick what to capture.</p>
         </div>
         <div class="badge" id="badge" hidden><span class="dot"></span><span id="badgeText">REC</span></div>
       </div>
@@ -29,39 +39,138 @@
         <div class="time" id="time">00:00:00</div>
         <div class="size" id="size">0 MB</div>
       </div>
+
+      <div class="meeting" id="meetingPanel" hidden>
+        <div class="m-col">
+          <h2 data-i18n="meet.transcript">Live transcript</h2>
+          <div class="transcript" id="transcript" aria-live="polite">
+            <p class="m-empty" id="transcriptEmpty" data-i18n="meet.transcript.empty"></p>
+          </div>
+        </div>
+        <div class="m-col">
+          <div class="m-head">
+            <h2 data-i18n="meet.notes">Notes and actions</h2>
+            <button class="tool" id="markBtn" type="button" data-i18n="mark">Mark key moment (M)</button>
+          </div>
+          <div class="note-form">
+            <select id="noteType" aria-label="Type">
+              <option value="note" data-i18n="note.note">Note</option>
+              <option value="action" data-i18n="note.action">Action item</option>
+              <option value="decision" data-i18n="note.decision">Decision</option>
+            </select>
+            <input type="text" id="noteText" dir="auto" data-i18n-ph="note.ph" placeholder="Type and press Enter">
+            <button class="tool" id="noteAdd" type="button" data-i18n="note.add">Add</button>
+          </div>
+          <ul class="notes" id="noteList"></ul>
+        </div>
+      </div>
     </section>
 
     <aside class="panel" aria-label="Recorder controls">
       <div class="actions">
-        <button class="primary" id="start" type="button">Start recording</button>
-        <div class="row" id="live" hidden>
-          <button class="secondary" id="pause" type="button">Pause</button>
-          <button class="stop" id="stop" type="button">Stop and save</button>
+        <div class="modes" role="group" aria-label="Mode">
+          <button type="button" id="modeScreen" class="on" aria-pressed="true" data-i18n="mode.screen">Screen</button>
+          <button type="button" id="modeMeeting" aria-pressed="false" data-i18n="mode.meeting">Meeting</button>
         </div>
-        <button class="ghost" id="floatBtn" type="button" hidden>Floating controls (stay on top)</button>
+        <button class="primary" id="start" type="button" data-i18n="start">Start recording</button>
+        <div class="row" id="live" hidden>
+          <button class="secondary" id="pause" type="button" data-i18n="pause">Pause</button>
+          <button class="stop" id="stop" type="button" data-i18n="stop">Stop and save</button>
+        </div>
+        <button class="ghost" id="floatBtn" type="button" hidden data-i18n="float">Floating controls (stay on top)</button>
         <p class="msg" id="msg" role="status"></p>
         <div class="result" id="result" hidden>
-          <h2>Recording ready</h2>
-          <a class="primary link" id="download" download>Download recording</a>
-          <button class="secondary" id="editBtn" type="button">Edit this recording</button>
-          <button class="ghost" id="discard" type="button">Discard and record again</button>
+          <h2 data-i18n="rec.ready">Recording ready</h2>
+          <a class="primary link" id="download" download data-i18n="download">Download recording</a>
+          <button class="secondary" id="editBtn" type="button" data-i18n="edit">Edit this recording</button>
+          <button class="ghost" id="discard" type="button" data-i18n="discard">Discard and record again</button>
+        </div>
+        <div class="result" id="meetResult" hidden>
+          <h2 data-i18n="meet.ready">Meeting files</h2>
+          <button class="secondary" id="dlMinutes" type="button" data-i18n="min.dl">Download minutes (.md)</button>
+          <button class="secondary" id="dlSrt" type="button" data-i18n="srt.dl">Download captions (.srt)</button>
+          <button class="ghost" id="copyMinutes" type="button" data-i18n="min.copy">Copy minutes</button>
         </div>
       </div>
 
       <div class="settings" id="settings">
-        <section class="sec">
-          <h2>Screen</h2>
+        <section class="sec" id="meetSection" hidden>
+          <h2 data-i18n="meet.title">Meeting</h2>
+          <div class="field stack">
+            <label for="meetTitle" data-i18n="meet.name">Meeting name</label>
+            <input type="text" id="meetTitle" dir="auto" data-i18n-ph="meet.name.ph" placeholder="e.g. Weekly team sync">
+          </div>
+          <label class="switch">
+            <input type="checkbox" id="transcribeOn" checked>
+            <span data-i18n="meet.transcribe">Live transcript</span>
+          </label>
           <div class="field">
-            <label for="source">Record</label>
+            <label for="speechLang" data-i18n="meet.lang">Speech language</label>
+            <select id="speechLang">
+              <option value="en-US">English (US)</option>
+              <option value="en-GB">English (UK)</option>
+              <option value="ar-AE">العربية (الإمارات)</option>
+              <option value="ar-SA">العربية (السعودية)</option>
+              <option value="ar-EG">العربية (مصر)</option>
+            </select>
+          </div>
+          <p class="hint" data-i18n="meet.hint"></p>
+        </section>
+
+        <section class="sec">
+          <h2 data-i18n="sec.camera">Camera</h2>
+          <label class="switch">
+            <input type="checkbox" id="camera">
+            <span data-i18n="cam.show">Show my face</span>
+          </label>
+          <p class="cam-note" id="camNote" role="alert" hidden></p>
+          <div class="sub" id="camOptions" hidden>
+            <div class="field">
+              <label for="layout" data-i18n="cam.layout">Layout</label>
+              <select id="layout">
+                <option value="small" selected data-i18n="layout.small">Small bubble</option>
+                <option value="big" data-i18n="layout.big">Big bubble</option>
+                <option value="side" data-i18n="layout.side">Side by side</option>
+                <option value="camera" data-i18n="layout.camera">Camera only (full)</option>
+              </select>
+            </div>
+            <div class="field" id="posField">
+              <label for="position" data-i18n="cam.position">Position</label>
+              <select id="position">
+                <option value="br" selected data-i18n="pos.br">Bottom right</option>
+                <option value="bl" data-i18n="pos.bl">Bottom left</option>
+                <option value="tr" data-i18n="pos.tr">Top right</option>
+                <option value="tl" data-i18n="pos.tl">Top left</option>
+              </select>
+            </div>
+            <div class="field" id="shapeField">
+              <label for="shape" data-i18n="cam.shape">Shape</label>
+              <select id="shape">
+                <option value="circle" selected data-i18n="shape.circle">Circle</option>
+                <option value="rounded" data-i18n="shape.rounded">Rounded square</option>
+              </select>
+            </div>
+            <label class="switch">
+              <input type="checkbox" id="mirror" checked>
+              <span data-i18n="cam.mirror">Mirror my camera</span>
+            </label>
+            <p class="hint" data-i18n="cam.hint">Layout, position and shape can be changed while recording.</p>
+          </div>
+        </section>
+
+        <section class="sec">
+          <h2 data-i18n="sec.screen">Screen</h2>
+          <div class="field">
+            <label for="source" data-i18n="src.label">Record</label>
             <select id="source">
-              <option value="monitor" selected>Entire screen (any app)</option>
-              <option value="window">One app window (e.g. VS Code)</option>
-              <option value="browser">A Chrome tab</option>
-              <option value="">Let me choose</option>
+              <option value="monitor" selected data-i18n="src.monitor">Entire screen (any app)</option>
+              <option value="window" data-i18n="src.window">One app window (e.g. VS Code)</option>
+              <option value="browser" data-i18n="src.browser">A browser tab</option>
+              <option value="" data-i18n="src.choose">Let me choose</option>
             </select>
           </div>
           <div class="field">
-            <label for="quality">Quality</label>
+            <label for="quality" data-i18n="quality">Quality</label>
             <select id="quality">
               <option value="720">720p</option>
               <option value="1080" selected>1080p</option>
@@ -70,7 +179,7 @@
             </select>
           </div>
           <div class="field">
-            <label for="fps">Frame rate</label>
+            <label for="fps" data-i18n="fps">Frame rate</label>
             <select id="fps">
               <option value="15">15 fps</option>
               <option value="30" selected>30 fps</option>
@@ -78,103 +187,55 @@
             </select>
           </div>
           <div class="field">
-            <label for="format">Format</label>
+            <label for="format" data-i18n="format">Format</label>
             <select id="format"></select>
           </div>
         </section>
 
         <section class="sec">
-          <h2>Sound</h2>
+          <h2 data-i18n="sec.sound">Sound</h2>
           <label class="switch">
             <input type="checkbox" id="sysAudio" checked>
-            <span>Computer / tab audio</span>
+            <span data-i18n="snd.system">Computer / tab audio</span>
           </label>
           <label class="switch">
             <input type="checkbox" id="mic">
-            <span>Microphone</span>
+            <span data-i18n="snd.mic">Microphone</span>
           </label>
           <div class="sub" id="micOptions" hidden>
             <div class="field">
-              <label for="isolation">Voice isolation</label>
+              <label for="isolation" data-i18n="iso.label">Voice isolation</label>
               <select id="isolation">
-                <option value="strong" selected>Strong – voice only</option>
-                <option value="standard">Standard – reduce noise</option>
-                <option value="off">Off – raw microphone</option>
+                <option value="strong" selected data-i18n="iso.strong">Strong – voice only</option>
+                <option value="standard" data-i18n="iso.standard">Standard – reduce noise</option>
+                <option value="off" data-i18n="iso.off">Off – raw microphone</option>
               </select>
             </div>
-            <p class="hint">Strong removes keyboard clicks, fans and room noise. If your voice sounds cut off, choose Standard.</p>
-            <div class="meter" id="meterWrap" hidden aria-label="Microphone level">
-              <span class="meter-label">Mic level</span>
+            <p class="hint" data-i18n="iso.hint"></p>
+            <div class="meter" id="meterWrap" hidden>
+              <span class="meter-label" data-i18n="meter">Mic level</span>
               <div class="meter-track"><div class="meter-bar" id="meterBar"></div></div>
             </div>
           </div>
         </section>
 
         <section class="sec">
-          <h2>Camera</h2>
-          <label class="switch">
-            <input type="checkbox" id="camera">
-            <span>Show my face</span>
-          </label>
-          <div class="sub" id="camOptions" hidden>
-            <div class="field">
-              <label for="layout">Layout</label>
-              <select id="layout">
-                <option value="small" selected>Small bubble</option>
-                <option value="big">Big bubble</option>
-                <option value="side">Side by side</option>
-                <option value="camera">Camera only (full)</option>
-              </select>
-            </div>
-            <div class="field" id="posField">
-              <label for="position">Position</label>
-              <select id="position">
-                <option value="br" selected>Bottom right</option>
-                <option value="bl">Bottom left</option>
-                <option value="tr">Top right</option>
-                <option value="tl">Top left</option>
-              </select>
-            </div>
-            <div class="field" id="shapeField">
-              <label for="shape">Shape</label>
-              <select id="shape">
-                <option value="circle" selected>Circle</option>
-                <option value="rounded">Rounded square</option>
-              </select>
-            </div>
-            <div class="field">
-              <label for="cameraLook">Camera look</label>
-              <select id="cameraLook">
-                <option value="none">Natural</option>
-                <option value="soft">Soft focus</option>
-                <option value="mono">Black &amp; white</option>
-                <option value="warm">Warm tone</option>
-              </select>
-            </div>
-            <p class="hint">These are camera-wide visual looks. True background replacement needs person segmentation and is planned for the next stage.</p>
-            <label class="switch">
-              <input type="checkbox" id="mirror" checked>
-              <span>Mirror my camera</span>
-            </label>
-            <p class="hint">Layout, position and shape can be changed while recording.</p>
-          </div>
-        </section>
-
-        <section class="sec">
-          <h2>Saving</h2>
+          <h2 data-i18n="sec.saving">Saving</h2>
           <label class="switch">
             <input type="checkbox" id="countdown" checked>
-            <span>3-second countdown</span>
+            <span data-i18n="countdown">3-second countdown</span>
           </label>
           <div id="diskGroup" class="disk">
-            <button class="ghost" id="pickFile" type="button">Save straight to a file</button>
-            <p class="hint" id="diskHint">Best for very long recordings. Video is written to disk as you record, so memory never fills up.</p>
+            <button class="ghost" id="pickFile" type="button" data-i18n="pick">Save straight to a file</button>
+            <p class="hint" id="diskHint" data-i18n="pick.hint"></p>
           </div>
         </section>
       </div>
     </aside>
   </main>
 
+  <script src="i18n.js"></script>
+  <script src="pwa.js"></script>
   <script src="clipstore.js"></script>
   <script src="recorder.js"></script>
 </body>

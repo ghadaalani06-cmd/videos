@@ -3,13 +3,63 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Free Screen Recorder</title>
-  <meta http-equiv="refresh" content="0; url=recorder.html">
+  <title>Screen Recorder</title>
+  <meta name="theme-color" content="#0f1226">
+  <meta name="description" content="Free screen, camera and meeting recorder with live Arabic and English transcripts, plus a video editor. No watermark, no time limit.">
+  <link rel="icon" href="icons/icon32.png">
+  <link rel="apple-touch-icon" href="icons/icon192.png">
+  <link rel="manifest" href="manifest.webmanifest">
   <link rel="stylesheet" href="recorder.css">
+  <link rel="stylesheet" href="hub.css">
 </head>
-<body>
-  <p style="font-family:system-ui;color:#eef0ff;padding:2rem;">
-    Opening recorder… <a href="recorder.html" style="color:#a594ff">Click here if nothing happens</a>
-  </p>
+<body data-title="title.recorder">
+  <header class="top">
+    <span class="tally" aria-hidden="true"></span>
+    <h1 data-i18n="title.recorder">Screen Recorder</h1>
+    <p data-i18n="tagline">Free. No watermark. No time limit.</p>
+    <div class="topbar">
+      <button class="nav" id="langBtn" type="button" data-i18n="nav.lang">العربية</button>
+    </div>
+  </header>
+
+  <main class="hub">
+    <p class="lead" data-i18n="hub.sub"></p>
+    <div class="cards">
+      <a class="card" href="recorder.html">
+        <span class="ico rec" aria-hidden="true"></span>
+        <h2 data-i18n="hub.rec">Record screen</h2>
+        <p data-i18n="hub.rec.d"></p>
+      </a>
+      <a class="card" href="recorder.html?mode=meeting">
+        <span class="ico meet" aria-hidden="true"></span>
+        <h2 data-i18n="hub.meet">Record a meeting</h2>
+        <p data-i18n="hub.meet.d"></p>
+      </a>
+      <a class="card" href="editor.html">
+        <span class="ico edit" aria-hidden="true"></span>
+        <h2 data-i18n="hub.edit">Edit a video</h2>
+        <p data-i18n="hub.edit.d"></p>
+      </a>
+    </div>
+    <div class="foot">
+      <p class="privacy" data-i18n="hub.privacy"></p>
+      <button class="ghost install" id="installBtn" type="button" hidden data-i18n="hub.install">Install app</button>
+    </div>
+  </main>
+
+  <script src="i18n.js"></script>
+  <script src="pwa.js"></script>
+  <script>
+    let deferred = null;
+    window.addEventListener('beforeinstallprompt', (e) => {
+      e.preventDefault(); deferred = e;
+      document.getElementById('installBtn').hidden = false;
+    });
+    document.getElementById('installBtn').addEventListener('click', async () => {
+      if (!deferred) return;
+      deferred.prompt(); await deferred.userChoice; deferred = null;
+      document.getElementById('installBtn').hidden = true;
+    });
+  </script>
 </body>
 </html>
