@@ -5,6 +5,10 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#0f1226">
+  <meta name="description" content="Join or host a group meeting with the Screen Recorder app.">
+  <link rel="icon" href="icons/icon32.png">
+  <link rel="apple-touch-icon" href="icons/icon192.png">
+  <link rel="manifest" href="manifest.webmanifest">
   <title>Group Meeting</title>
   <link rel="stylesheet" href="meeting.css">
   <style>
@@ -41,6 +45,7 @@
     <button id="langBtn" type="button" data-i18n="nav.lang">
       العربية
     </button>
+    <button id="installBtn" type="button" hidden>Install app</button>
   </header>
 
   <section class="controls">
@@ -94,6 +99,23 @@
 </main>
 
 <script src="i18n.js"></script>
+<script src="pwa.js"></script>
 <script src="meeting.js"></script>
+<script>
+  let deferredInstallPrompt = null;
+  const installButton = document.getElementById('installBtn');
+  window.addEventListener('beforeinstallprompt', (event) => {
+    event.preventDefault();
+    deferredInstallPrompt = event;
+    installButton.hidden = false;
+  });
+  installButton.addEventListener('click', async () => {
+    if (!deferredInstallPrompt) return;
+    deferredInstallPrompt.prompt();
+    await deferredInstallPrompt.userChoice;
+    deferredInstallPrompt = null;
+    installButton.hidden = true;
+  });
+</script>
 </body>
 </html>
