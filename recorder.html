@@ -7,7 +7,6 @@
   <meta name="theme-color" content="#0f1226">
   <link rel="icon" href="icons/icon32.png">
   <link rel="apple-touch-icon" href="icons/icon128.png">
-  <link rel="manifest" href="manifest.webmanifest">
   <link rel="stylesheet" href="recorder.css">
 </head>
 <body data-title="title.recorder">
@@ -132,7 +131,8 @@
                 <option value="big" data-i18n="layout.big">Big bubble</option>
                 <option value="side" data-i18n="layout.side">Side by side</option>
                 <option value="camera" data-i18n="layout.camera">Camera only (full)</option>
-                <option value="meeting">Two-person meeting (split)</option>
+                <option value="group">Group meeting gallery (4+ people)</option>
+                <option value="meeting">Two-camera split (local cameras)</option>
               </select>
             </div>
             <div class="field" id="posField">
@@ -156,7 +156,7 @@
               <span data-i18n="cam.mirror">Mirror my camera</span>
             </label>
             <p class="hint" data-i18n="cam.hint">Layout, position and shape can be changed while recording.</p>
-            <p class="hint">Two-person meeting: uses a second camera source when available; backgrounds are decorative panels behind each camera frame.</p>
+            <p class="hint">Group meeting: share the meeting tab/window with its participant gallery visible. All visible participants are recorded as shown by the meeting app; your camera can appear as a face overlay. Participant backgrounds are controlled by the meeting app.</p>
           </div>
         </section>
 

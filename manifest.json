@@ -1,16 +1,13 @@
 {
   "manifest_version": 3,
-  "name": "Free Screen & Video Recorder – Unlimited",
+  "name": "__MSG_extName__",
   "short_name": "Screen Recorder",
-  "version": "1.7.0",
-  "description": "Record and edit screen videos, apply camera looks, and create or join self-hosted video meetings. Free, no watermark, no time limit.",
+  "version": "2.1.0",
+  "description": "__MSG_extDesc__",
+  "default_locale": "en",
   "permissions": ["tabs"],
-  "host_permissions": [
-    "http://localhost:3001/*",
-    "https://*/*"
-  ],
   "action": {
-    "default_title": "Open Screen Recorder",
+    "default_title": "__MSG_actionTitle__",
     "default_icon": {
       "16": "icons/icon16.png",
       "32": "icons/icon32.png",
@@ -24,8 +21,5 @@
     "32": "icons/icon32.png",
     "48": "icons/icon48.png",
     "128": "icons/icon128.png"
-  },
-  "content_security_policy": {
-    "extension_pages": "script-src 'self' https://cdn.socket.io; object-src 'self'"
   }
 }

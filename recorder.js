@@ -458,6 +458,10 @@ function drawFrame() {
     return;
   }
 
+  // Group meeting mode records the shared meeting tab/window as the main canvas.
+  // This preserves the remote participants' gallery exactly as rendered by Meet/Zoom/Teams,
+  // instead of pretending that remote participant cameras are locally accessible.
+  const groupMeeting = L === 'group';
   const side = hasCam && L === 'side';
   const camW = Math.round(W * 0.3);
   drawScreenIn({ x: 0, y: 0, w: side ? W - camW : W, h: H });
@@ -465,15 +469,15 @@ function drawFrame() {
   if (side) {
     drawCover(camVideo, W - camW, 0, camW, H, mirror);
   } else if (hasCam) {
-    const d = Math.round(H * (L === 'big' ? 0.44 : 0.26));
-    const bw = el.shape.value === 'circle' ? d : Math.round(d * 1.33);
+    const d = Math.round(H * (L === 'group' ? 0.34 : (L === 'big' ? 0.44 : 0.26)));
+    const bw = (L === 'group' || el.shape.value !== 'circle') ? Math.round(d * 1.33) : d;
     const m = Math.round(W * 0.02);
     const pos = el.position.value;
     const x = pos.endsWith('r') ? W - bw - m : m;
     const y = pos.startsWith('b') ? H - d - m : m;
     const path = () => {
       ctx2d.beginPath();
-      if (el.shape.value === 'circle') ctx2d.arc(x + d / 2, y + d / 2, d / 2, 0, Math.PI * 2);
+      if (L !== 'group' && el.shape.value === 'circle') ctx2d.arc(x + d / 2, y + d / 2, d / 2, 0, Math.PI * 2);
       else ctx2d.roundRect(x, y, bw, d, d * 0.14);
     };
     ctx2d.save(); path(); ctx2d.clip();
