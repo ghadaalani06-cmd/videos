@@ -32,6 +32,70 @@ let recording = false, paused = false;
 let camStream = null, camVideo = null, screenVideo = null, canvasStream = null, ctx2d = null;
 let compositing = false, timerWorker = null;
 
+// Optional person segmentation for face-camera background effects.
+const faceBgMode = $('faceBgMode'), faceBgFile = $('faceBgFile'), faceBgStatus = $('faceBgStatus');
+let faceSegmenter = null, faceBgImage = null, faceBgImageId = 0;
+let faceOutput = null, faceBusy = false, faceLastSent = 0;
+const faceBgColors = {
+  violet:['#7c5cff','#1b1e5a'], sunset:['#ff7a59','#e8204a','#5b3df0'],
+  ocean:['#0f766e','#164e63','#0f1226'], mint:['#4fe3a0','#0f766e'],
+  night:['#0f1226','#2a2f5e'], sand:['#f2d7a6','#e7a97b'], paper:['#eef0ff','#cfd6ff']
+};
+function faceBackgroundActive(){ return !!faceBgMode && faceBgMode.value !== 'none'; }
+function setFaceStatus(message){ if(faceBgStatus) faceBgStatus.textContent=message; }
+async function initFaceSegmenter(){
+  if(faceSegmenter) return faceSegmenter;
+  if(typeof SelfieSegmentation === 'undefined') throw new Error('Background model could not load. Check your internet connection.');
+  faceSegmenter = new SelfieSegmentation({locateFile:(file)=>'https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation/'+file});
+  faceSegmenter.setOptions({modelSelection:1});
+  faceSegmenter.onResults((results)=>{
+    if(!faceOutput || !camVideo || !results.segmentationMask) return;
+    const w=faceOutput.width,h=faceOutput.height, out=faceOutput.getContext('2d');
+    const person=document.createElement('canvas'); person.width=w; person.height=h;
+    const pc=person.getContext('2d');
+    pc.drawImage(results.image,0,0,w,h);
+    pc.globalCompositeOperation='destination-in';
+    pc.drawImage(results.segmentationMask,0,0,w,h);
+    out.clearRect(0,0,w,h);
+    if(faceBgMode.value==='blur'){
+      out.save(); out.filter='blur(16px)'; out.drawImage(results.image,-12,-12,w+24,h+24); out.restore();
+    } else if(faceBgMode.value==='image' && faceBgImage){
+      const scale=Math.max(w/faceBgImage.width,h/faceBgImage.height),dw=faceBgImage.width*scale,dh=faceBgImage.height*scale;
+      out.drawImage(faceBgImage,(w-dw)/2,(h-dh)/2,dw,dh);
+    } else {
+      const stops=faceBgColors[faceBgMode.value]||faceBgColors.night;
+      const g=out.createLinearGradient(0,0,w,h);
+      stops.forEach((c,i)=>g.addColorStop(i/(stops.length-1),c));
+      out.fillStyle=g; out.fillRect(0,0,w,h);
+    }
+    out.drawImage(person,0,0,w,h);
+  });
+  await faceSegmenter.initialize();
+  return faceSegmenter;
+}
+faceBgMode?.addEventListener('change',async()=>{
+  if(faceBgMode.value==='image'){faceBgFile.click();return;}
+  if(faceBgMode.value==='none'){faceOutput=null;setFaceStatus('Using your original camera background.');return;}
+  try{await initFaceSegmenter();setFaceStatus('Background effect ready. It will be applied to the recorded camera.');}
+  catch(e){faceBgMode.value='none';setFaceStatus(e.message+' Using original background instead.');}
+});
+faceBgFile?.addEventListener('change',async()=>{
+  const file=faceBgFile.files?.[0]; faceBgFile.value=''; if(!file)return;
+  try{
+    const img=await createImageBitmap(file); faceBgImage=img; faceBgImageId++;
+    faceBgMode.value='image'; await initFaceSegmenter();
+    setFaceStatus('Custom background selected.');
+  }catch(e){faceBgMode.value='none';setFaceStatus(e.message||'Could not load that image.');}
+});
+async function updateFaceBackground(){
+  if(!faceBackgroundActive() || !camVideo || !faceSegmenter || faceBusy) return;
+  const now=performance.now(); if(now-faceLastSent<90)return; faceLastSent=now; faceBusy=true;
+  try{await faceSegmenter.send({image:camVideo});}
+  catch(e){setFaceStatus('Background effect stopped; using original camera.');faceBgMode.value='none';faceOutput=null;}
+  finally{faceBusy=false;}
+}
+
+
 // ---------- setup ----------
 (function init() {
   const seen = new Set();
@@ -437,16 +501,18 @@ function drawFrame() {
   if (!compositing || !ctx2d) return;
   const W = el.canvas.width, H = el.canvas.height;
   const L = el.layout.value, mirror = el.mirror.checked, hasCam = !!camVideo;
+  if(hasCam && faceBackgroundActive()) updateFaceBackground();
+  const cameraSource = faceOutput || camVideo;
   if (!bgOn()) { ctx2d.fillStyle = '#0d1620'; ctx2d.fillRect(0, 0, W, H); }
 
-  if (hasCam && L === 'camera') { drawCover(camVideo, 0, 0, W, H, mirror); return; }
+  if (hasCam && L === 'camera') { drawCover(cameraSource, 0, 0, W, H, mirror); return; }
 
   const side = hasCam && L === 'side';
   const camW = Math.round(W * 0.3);
   drawScreenIn({ x: 0, y: 0, w: side ? W - camW : W, h: H });
 
   if (side) {
-    drawCover(camVideo, W - camW, 0, camW, H, mirror);
+    drawCover(cameraSource, W - camW, 0, camW, H, mirror);
   } else if (hasCam) {
     const d = Math.round(H * (L === 'big' ? 0.44 : 0.26));
     const bw = el.shape.value === 'circle' ? d : Math.round(d * 1.33);
@@ -460,7 +526,7 @@ function drawFrame() {
       else ctx2d.roundRect(x, y, bw, d, d * 0.14);
     };
     ctx2d.save(); path(); ctx2d.clip();
-    drawCover(camVideo, x, y, bw, d, mirror);
+    drawCover(cameraSource, x, y, bw, d, mirror);
     ctx2d.restore();
     path();
     ctx2d.lineWidth = Math.max(3, W * 0.003);
