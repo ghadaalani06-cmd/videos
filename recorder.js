@@ -737,8 +737,8 @@ function setMode(meeting) {
   M.modeMeeting.classList.toggle('on', meeting);
   M.modeScreen.setAttribute('aria-pressed', String(!meeting));
   M.modeMeeting.setAttribute('aria-pressed', String(meeting));
-  M.panel.hidden = !meeting;
-  M.section.hidden = !meeting;
+  M.panel.hidden = !meeting && !$('screenTranscriptOn').checked;
+  M.section.hidden = !meeting && !$('screenTranscriptOn').checked;
   M.result.hidden = true;
   el.start.textContent = t(meeting ? 'start.meeting' : 'start');
   if (meeting && !mode.presetApplied) {
@@ -865,25 +865,26 @@ document.addEventListener('keydown', (e) => {
 
 // ---------- lifecycle hooks (called from the recorder code above) ----------
 function meetingOnStart() {
-  if (!mode.meeting) return;
+  if (!mode.meeting && !$('screenTranscriptOn').checked) return;
   lines = []; items = []; meetStart = Date.now(); meetDurMs = 0;
   M.transcript.querySelectorAll('.line').forEach((n) => n.remove());
   M.tEmpty.hidden = false; renderItems(); M.result.hidden = true;
-  if (M.on.checked) {
+  if (M.on.checked && (mode.meeting || $('screenTranscriptOn').checked)) {
     if (!SR) say(t('meet.nosr'), true);
     else { srWanted = true; launchSR(); }
   }
 }
 function meetingOnPause(isPaused) {
-  if (!mode.meeting || !srWanted) return;
+  if ((!mode.meeting && !$('screenTranscriptOn').checked) || !srWanted) return;
   if (isPaused) { if (sr) { try { sr.stop(); } catch (_) {} } }
   else launchSR();
 }
 function meetingOnStop() {
-  if (!mode.meeting) return;
+  if (!mode.meeting && !$('screenTranscriptOn').checked) { stopSR(); return; }
   meetDurMs = Math.max(0, elapsed());
   stopSR();
   M.result.hidden = !(lines.length || items.length);
+  if (!mode.meeting) M.result.hidden = true;
 }
 
 // ---------- minutes + captions ----------
@@ -1049,3 +1050,5 @@ bgFile.addEventListener('change', async () => {
   }
 });
 [bgPad, bgRadius, bgShadow].forEach((n) => n.addEventListener('input', refreshBgPreview));
+
+$('screenTranscriptOn').addEventListener('change', () => { if(!mode.meeting){ M.panel.hidden=!$('screenTranscriptOn').checked; M.section.hidden=!$('screenTranscriptOn').checked; } });
