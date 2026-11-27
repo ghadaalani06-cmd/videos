@@ -155,6 +155,23 @@
               <input type="checkbox" id="mirror" checked>
               <span data-i18n="cam.mirror">Mirror my camera</span>
             </label>
+            <div class="field">
+              <label for="faceBgMode">Face camera background</label>
+              <select id="faceBgMode">
+                <option value="none">Original background</option>
+                <option value="blur">Blur background</option>
+                <option value="violet">Violet studio</option>
+                <option value="sunset">Sunset</option>
+                <option value="ocean">Ocean</option>
+                <option value="mint">Mint</option>
+                <option value="night">Night</option>
+                <option value="sand">Warm sand</option>
+                <option value="paper">Soft lavender</option>
+                <option value="image">Custom photo…</option>
+              </select>
+              <input type="file" id="faceBgFile" accept="image/*" hidden>
+              <p class="hint" id="faceBgStatus">Background effects need a supported browser and an internet connection to load the person-segmentation model.</p>
+            </div>
             <p class="hint" data-i18n="cam.hint">Layout, position and shape can be changed while recording.</p>
           </div>
         </section>
@@ -270,6 +287,7 @@
   <script src="i18n.js"></script>
   <script src="pwa.js"></script>
   <script src="clipstore.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation/selfie_segmentation.js" crossorigin="anonymous"></script>
   <script src="recorder.js"></script>
 </body>
 </html>
