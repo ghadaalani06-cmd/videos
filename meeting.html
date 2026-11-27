@@ -1,1 +1,101 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Group Meeting</title><link rel="stylesheet" href="meeting.css"></head><body><main class="shell"><header><a href="index.html">← Back</a><h1>Group meeting</h1><p>Create a room and invite people with a link or meeting code.</p></header><section class="controls"><label>Your name<input id="name" placeholder="Your name" value="Guest"></label><label>Meeting code<input id="room" placeholder="e.g. TEAM42"></label><label>Signaling server URL<input id="server" placeholder="wss://your-server.example.com" value="ws://localhost:8787"></label><label>Public meeting page URL (for extension invites)<input id="publicUrl" placeholder="https://your-site.example/meeting.html"></label><div class="buttons"><button id="create">Create meeting</button><button id="join">Join meeting</button><button id="leave" hidden>Leave</button></div><label>Invite link<input id="meetingLink" readonly></label><button id="copy" hidden>Copy invite link</button><p id="status" role="status">Not connected. Camera and microphone access are requested when you join.</p></section><section id="tiles" class="tiles" aria-live="polite"></section><p class="note">Use HTTPS for the website and WSS for the signaling server in production. Each participant grants camera/microphone permission in their own browser.</p></main><script src="meeting.js"></script></body></html>
+<!doctype html><html lang="en"><head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Group Meeting</title><link rel="stylesheet" href="meeting.css"></head><body><main class="shell"><header><a href="index.html">← Back</a><h1>Group meeting</h1><p>Create a room and invite people with a link or meeting code.</p></header><section class="controls"><label>Your name<input id="name" placeholder="Your name" value="Guest"></label><label>Meeting code<input id="room" placeholder="e.g. TEAM42"></label><label>Signaling server URL<input id="server" placeholder="wss://your-server.example.com" value="ws://localhost:8787"></label><label>Public meeting page URL (for extension invites)<input id="publicUrl" placeholder="https://your-site.example/meeting.html"></label><div class="buttons"><button id="create">Create meeting</button><button id="join">Join meeting</button><button id="leave" hidden>Leave</button></div><label>Invite link<input id="meetingLink" readonly></label><button id="copy" hidden>Copy invite link</button><p id="status" role="status">Not connected. Camera and microphone access are requested when you join.</p></section><section id="tiles" class="tiles" aria-live="polite"></section><p class="note">Use HTTPS for the website and WSS for the signaling server in production. Each participant grants camera/microphone permission in their own browser.</p></main><script src="meeting.js"></script></body></html>
+
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0f1226">
+  <title>Group Meeting</title>
+  <link rel="stylesheet" href="meeting.css">
+  <style>
+    * { box-sizing: border-box; }
+    body { margin: 0; padding: 16px; }
+    .shell { width: 100%; max-width: 1000px; margin: auto; }
+    .controls { display: grid; gap: 14px; }
+    .controls label { display: grid; gap: 6px; }
+    input, button { min-height: 44px; width: 100%; }
+    input { min-width: 0; padding: 10px; }
+    .buttons { display: flex; flex-wrap: wrap; gap: 10px; }
+    .buttons button { flex: 1 1 130px; }
+    .tiles { display: grid; grid-template-columns:
+      repeat(auto-fit, minmax(min(100%, 260px), 1fr));
+      gap: 12px; margin-top: 18px; }
+    .tile { min-width: 0; }
+    .tile video { width: 100%; aspect-ratio: 16 / 9;
+      object-fit: cover; background: #000; }
+    [dir="rtl"] .shell { text-align: right; }
+    @media (max-width: 480px) {
+      body { padding: 10px; }
+      .buttons { flex-direction: column; }
+    }
+  </style>
+</head>
+<body>
+<main class="shell">
+  <header>
+    <a href="index.html" data-i18n="group.back">Back</a>
+    <h1 data-i18n="group.title">Group meeting</h1>
+    <p data-i18n="group.subtitle">
+      Create a room and invite people with a link or code.
+    </p>
+    <button id="langBtn" type="button" data-i18n="nav.lang">
+      العربية
+    </button>
+  </header>
+
+  <section class="controls">
+    <label>
+      <span data-i18n="group.name">Your name</span>
+      <input id="name" placeholder="Guest" value="Guest">
+    </label>
+
+    <label>
+      <span data-i18n="group.code">Meeting code</span>
+      <input id="room" placeholder="Meeting code">
+    </label>
+
+    <label>
+      <span data-i18n="group.server">Signaling server URL</span>
+      <input id="server" placeholder="wss://your-server.example.com"
+        value="ws://localhost:8787">
+    </label>
+
+    <label>
+      <span data-i18n="group.public">Public meeting page URL</span>
+      <input id="publicUrl" placeholder="https://your-site.example/meeting.html">
+    </label>
+
+    <div class="buttons">
+      <button id="create" data-i18n="group.create">Create meeting</button>
+      <button id="join" data-i18n="group.join">Join meeting</button>
+      <button id="leave" hidden data-i18n="group.leave">Leave meeting</button>
+    </div>
+
+    <label>
+      <span data-i18n="group.invite">Invite link</span>
+      <input id="meetingLink" readonly>
+    </label>
+
+    <button id="copy" hidden data-i18n="group.copy">
+      Copy invite link
+    </button>
+
+    <p id="status" role="status" aria-live="polite"
+       data-i18n="group.note">
+      Camera and microphone permission will be requested when you join.
+    </p>
+  </section>
+
+  <section id="tiles" class="tiles" aria-live="polite"></section>
+
+  <p class="note" data-i18n="group.https">
+    Use HTTPS for the website and WSS for the signaling server.
+  </p>
+</main>
+
+<script src="i18n.js"></script>
+<script src="meeting.js"></script>
+</body>
+</html>
