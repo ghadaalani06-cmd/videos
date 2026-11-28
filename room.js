@@ -75,7 +75,7 @@ async function initLobby() {
 
 function mediaErrorMessage(error) {
   if (!window.isSecureContext || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-    return 'Camera access requires opening this page in Safari over HTTPS. Please use the https:// site address.';
+    return 'Camera access requires a secure HTTPS page. Open the meeting link directly in Chrome or Safari, not inside another app.';
   }
   if (error && (error.name === 'NotAllowedError' || error.name === 'PermissionDeniedError')) {
     return 'Camera permission is blocked. In iPhone Settings > Safari > Camera, allow access, then reload this page.';
@@ -147,15 +147,22 @@ async function startLobbyMedia() {
   try {
     localStream = await navigator.mediaDevices.getUserMedia({
       audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
-      video: { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: 'user' }
+      video: { width: { ideal: 640 }, height: { ideal: 480 }, facingMode: { ideal: 'user' } }
     });
   } catch (_) {
     try { localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false }); } catch (_) {}
     try {
-      const videoStream = await navigator.mediaDevices.getUserMedia({
-        audio: false,
-        video: { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 720 } }
-      });
+      let videoStream;
+      try {
+        videoStream = await navigator.mediaDevices.getUserMedia({
+          audio: false,
+          video: { facingMode: { ideal: 'user' }, width: { ideal: 640 }, height: { ideal: 480 } }
+        });
+      } catch (_) {
+        // Let Android Chrome select any available camera if the preferred
+        // front-camera constraints are not supported by the device.
+        videoStream = await navigator.mediaDevices.getUserMedia({ audio: false, video: true });
+      }
       if (!localStream) localStream = new MediaStream();
       videoStream.getVideoTracks().forEach((track) => localStream.addTrack(track));
     } catch (error) {
