@@ -312,6 +312,7 @@ function addPeer(id, name) {
   p.tile = makeTile(id, name, p.stream, false);
   p.tile.el.classList.add('off');
   peers.set(id, p); seenNames.add(name);
+  refreshChatRecipients();
   layoutGrid(); updateCount();
   return p;
 }
@@ -319,6 +320,7 @@ function removePeer(id) {
   const p = peers.get(id); if (!p) return;
   try { p.pc && p.pc.close(); } catch (_) {}
   p.tile.el.remove(); peers.delete(id);
+  refreshChatRecipients();
   layoutGrid(); updateCount(); syncRecAudio();
 }
 let pinnedId = null;
@@ -544,20 +546,48 @@ Object.keys(TABS).forEach((k) => $('tab' + k).addEventListener('click', () => {
 }));
 
 // ---------- chat ----------
+function refreshChatRecipients() {
+  const select = $('chatRecipient');
+  if (!select) return;
+  const selected = select.value || 'all';
+  select.innerHTML = '';
+  const everyone = document.createElement('option');
+  everyone.value = 'all'; everyone.textContent = t('room.chat.everyone');
+  select.appendChild(everyone);
+  for (const [id, peer] of peers) {
+    const option = document.createElement('option');
+    option.value = id; option.textContent = peer.name;
+    select.appendChild(option);
+  }
+  select.value = peers.has(selected) ? selected : 'all';
+}
 function addChat(name, text, ts, mine) {
   const m = document.createElement('div'); m.className = 'msg' + (mine ? ' me' : '');
   const who = document.createElement('span'); who.className = 'who';
-  who.textContent = `${name} · ${new Date(ts || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}`;
+  who.textContent = name + ' · ' + new Date(ts || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   const p = document.createElement('p'); p.dir = 'auto'; p.textContent = text;
   m.append(who, p); $('chatLog').appendChild(m); $('chatLog').scrollTop = $('chatLog').scrollHeight;
 }
 function sendChat() {
   const text = $('chatText').value.trim(); if (!text) return;
   const ts = Date.now(); $('chatText').value = '';
-  addChat(myName, text, ts, true); broadcastMsg('chat', { text, ts });
+  addChat(myName, text, ts, true);
+  const recipient = $('chatRecipient').value;
+  if (recipient === 'all') broadcastMsg('chat', { text, ts });
+  else sendTo(recipient, 'chat', { text, ts });
 }
 $('chatSend').addEventListener('click', sendChat);
 $('chatText').addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); sendChat(); } });
+document.querySelectorAll('.emoji-btn').forEach((button) => button.addEventListener('click', () => {
+  const input = $('chatText'), emoji = button.dataset.emoji;
+  const start = input.selectionStart == null ? input.value.length : input.selectionStart;
+  const end = input.selectionEnd == null ? input.value.length : input.selectionEnd;
+  input.value = input.value.slice(0, start) + emoji + input.value.slice(end);
+  input.focus();
+  const cursor = start + emoji.length;
+  input.setSelectionRange(cursor, cursor);
+}));
+refreshChatRecipients();
 
 // ---------- live captions (each person transcribes their own voice and shares it) ----------
 const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
