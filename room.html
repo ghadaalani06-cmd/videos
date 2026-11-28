@@ -84,10 +84,12 @@
         </div>
         <div class="tabpanel" id="panelChat" hidden>
           <div class="chat-log" id="chatLog" aria-live="polite"></div>
+          <div class="chat-recipient"><label for="chatRecipient" data-i18n="room.chat.to">Send to</label><select id="chatRecipient" aria-label="Choose chat recipient"><option value="all" data-i18n="room.chat.everyone">Everyone</option></select></div>
           <div class="chat-form">
             <input type="text" id="chatText" dir="auto" data-i18n-ph="room.chat.ph" placeholder="Type a message" autocomplete="off">
             <button class="tool" id="chatSend" type="button" data-i18n="room.send">Send</button>
           </div>
+          <div class="chat-emojis" aria-label="Emoji picker"><span data-i18n="room.chat.emoji">Emojis</span> <button type="button" class="emoji-btn" data-emoji="😀" aria-label="Smile">😀</button><button type="button" class="emoji-btn" data-emoji="😂" aria-label="Laugh">😂</button><button type="button" class="emoji-btn" data-emoji="❤️" aria-label="Heart">❤️</button><button type="button" class="emoji-btn" data-emoji="👍" aria-label="Thumbs up">👍</button><button type="button" class="emoji-btn" data-emoji="🎉" aria-label="Party">🎉</button><button type="button" class="emoji-btn" data-emoji="👏" aria-label="Clap">👏</button></div>
         </div>
         <div class="tabpanel" id="panelCaptions">
           <h2 class="panel-heading">Live Transcript</h2>
