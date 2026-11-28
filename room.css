@@ -123,8 +123,14 @@ body.in-call .call { margin-top: 8px; gap: 10px; }
 
 
 /* Chat recipient and emoji controls */
-.chat-recipient { display: flex; align-items: center; gap: 8px; font-size: .85rem; color: var(--mist); }
-.chat-recipient select { flex: 1; min-width: 0; padding: 8px 10px; border: 1px solid var(--edge); border-radius: 9px; background: var(--ink); color: var(--paper); }
-.chat-emojis { display: flex; align-items: center; flex-wrap: wrap; gap: 5px; color: var(--mist); font-size: .8rem; }
-.chat-emojis .emoji-btn { padding: 5px 7px; border: 1px solid var(--edge); border-radius: 8px; background: rgba(255,255,255,.05); font-size: 1.05rem; line-height: 1.2; cursor: pointer; }
+.chat-recipient { display: grid; grid-template-columns: 1fr; gap: 5px; color: var(--mist); font-size: .85rem; }
+.chat-recipient label { font-weight: 700; }
+.chat-recipient select { width: 100%; min-width: 0; padding: 10px 12px; border: 1px solid var(--edge); border-radius: 10px; background: var(--ink); color: var(--paper); font: inherit; }
+.chat-recipient small { font-size: .75rem; opacity: .8; }
+.chat-emojis { display: grid; gap: 7px; color: var(--mist); font-size: .8rem; }
+.chat-emojis .emoji-label { font-weight: 700; }
+.emoji-list { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 7px; }
+.chat-emojis .emoji-btn { display: grid; place-items: center; min-width: 0; min-height: 40px; padding: 6px; border: 1px solid var(--edge); border-radius: 10px; background: rgba(255,255,255,.055); font-size: 1.25rem; line-height: 1; cursor: pointer; transition: background .15s, transform .15s; }
+.chat-emojis .emoji-btn:hover { background: rgba(124,92,255,.2); }
 .chat-emojis .emoji-btn:active { transform: scale(.94); }
+@media (max-width: 380px) { .emoji-list { grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 5px; } .chat-emojis .emoji-btn { min-height: 36px; font-size: 1.1rem; } }
