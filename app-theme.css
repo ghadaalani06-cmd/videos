@@ -1,0 +1,21 @@
+:root{color-scheme:dark}
+html[data-theme="light"]{color-scheme:light;--midnight:#f4f6fb;--deck:#fff;--deck-hi:#edf1f8;--edge:#d7dfec;--ink:#1c2942;--mist:#64728d;--signal:#5d65d9;--signal-lit:#655bd1}
+body[data-theme="light"]{background:#f4f6fb!important;color:#1c2942!important}
+body[data-theme="light"] .top p,body[data-theme="light"] .hint,body[data-theme="light"] .msg,body[data-theme="light"] .note{color:#64728d}
+body[data-theme="light"] .panel,body[data-theme="light"] .meet-wrap,body[data-theme="light"] .lobby-card,body[data-theme="light"] .ended-card{background:#fff;border-color:#d7dfec;color:#1c2942}
+body[data-theme="light"] .actions,body[data-theme="light"] .settings,body[data-theme="light"] .sec{background:#fff;border-color:#d7dfec}
+body[data-theme="light"] input:not([type=checkbox]):not([type=range]),body[data-theme="light"] select,body[data-theme="light"] textarea{background:#fff!important;color:#1c2942!important;border-color:#cbd5e4!important}
+body[data-theme="light"] button.nav,body[data-theme="light"] button.tool,body[data-theme="light"] .secondary,body[data-theme="light"] .ghost{background:#edf1f8;color:#24324d;border-color:#d0d9e8}
+body[data-theme="light"] .field label,body[data-theme="light"] .sec h2,body[data-theme="light"] .lobby-form h2{color:#24324d}
+body[data-theme="light"] .transcript,body[data-theme="light"] .notes,body[data-theme="light"] .note-form{background:#f7f9fd;color:#24324d;border-color:#d7dfec}
+body[data-theme="light"] .lobby-video,body[data-theme="light"] .tile{border-color:#d7dfec}
+body[data-theme="light"] .avatar{background:linear-gradient(135deg,#e5eaff,#f1edff)}
+body[data-theme="light"] .readout .time{color:#24324d}
+body[data-theme="light"] .timeline{background:repeating-linear-gradient(135deg,#e8edf7 0 8px,#f4f6fb 8px 16px);border-color:#d7dfec}
+body[data-theme="light"] .controls{background:#fff;color:#24324d}
+body[data-theme="light"] .controls label{color:#52617d}
+body[data-theme="light"] .caption{background:#ffffffd9;color:#24324d}
+.theme-toggle-app{min-width:38px;min-height:34px;padding:6px 10px!important;display:inline-flex;align-items:center;justify-content:center;cursor:pointer}
+html[dir="rtl"] body{direction:rtl}
+html[dir="rtl"] .topbar,html[dir="rtl"] .layout,html[dir="rtl"] .lobby-card{direction:rtl}
+html[dir="rtl"] .readout,html[dir="rtl"] .transport{direction:rtl}
