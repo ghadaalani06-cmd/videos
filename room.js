@@ -73,18 +73,97 @@ async function initLobby() {
 }
 // Server URL is fixed in DEFAULT_SERVER_URL; manual server editing is disabled.
 
-async function startLobbyMedia() {
-  const attempts = [
-    { audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true }, video: { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: 'user' } },
-    { audio: true }, { video: true },
-  ];
-  for (const c of attempts) {
-    try { localStream = await navigator.mediaDevices.getUserMedia(c); break; } catch (_) {}
+function mediaErrorMessage(error) {
+  if (!window.isSecureContext || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+    return 'Camera access requires opening this page in Safari over HTTPS. Please use the https:// site address.';
   }
-  if (!localStream) { $('lobbyNote').textContent = t('room.noperm'); $('lobbyNote').hidden = false; }
-  else if (!cameraTrack() || !audioTrack()) { $('lobbyNote').textContent = t('room.noperm'); $('lobbyNote').hidden = false; }
-  $('lobbyVideo').srcObject = localStream;
+  if (error && (error.name === 'NotAllowedError' || error.name === 'PermissionDeniedError')) {
+    return 'Camera permission is blocked. In iPhone Settings > Safari > Camera, allow access, then reload this page.';
+  }
+  if (error && (error.name === 'NotFoundError' || error.name === 'DevicesNotFoundError')) {
+    return 'No available camera was found on this device.';
+  }
+  if (error && (error.name === 'NotReadableError' || error.name === 'TrackStartError')) {
+    return 'The camera may be in use by another app. Close other camera apps and try again.';
+  }
+  return 'Could not start the camera. Check Safari camera permission and try again.';
+}
+async function ensureCamera() {
+  if (cameraTrack()) {
+    cameraTrack().enabled = camOn;
+    return true;
+  }
+  if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+    $('lobbyNote').textContent = mediaErrorMessage();
+    $('lobbyNote').hidden = false;
+    return false;
+  }
+  try {
+    // Request video from the button's user gesture; this is important on iOS Safari.
+    const videoStream = await navigator.mediaDevices.getUserMedia({
+      audio: false,
+      video: { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 720 } }
+    });
+    if (!localStream) localStream = new MediaStream();
+    videoStream.getVideoTracks().forEach((track) => {
+      track.enabled = camOn;
+      localStream.addTrack(track);
+    });
+    $('lobbyVideo').srcObject = localStream;
+    $('lobbyVideo').muted = true;
+    $('lobbyVideo').playsInline = true;
+    $('lobbyVideo').play().catch(() => {});
+    if (inCall) {
+      const track = cameraTrack();
+      await setOutgoingVideo(camOn ? track : null);
+      applyMyTile();
+      sendState();
+      refreshControls();
+    }
+    $('lobbyNote').hidden = true;
+    return true;
+  } catch (error) {
+    $('lobbyNote').textContent = mediaErrorMessage(error);
+    $('lobbyNote').hidden = false;
+    return false;
+  }
+}
+async function startLobbyMedia() {
+  if (!window.isSecureContext || !navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
+    $('lobbyNote').textContent = mediaErrorMessage();
+    $('lobbyNote').hidden = false;
+    refreshLobbyButtons();
+    return;
+  }
+  // Ask for audio and video together first, then request each independently so a
+  // denied/missing camera does not prevent the microphone from working (or vice versa).
+  try {
+    localStream = await navigator.mediaDevices.getUserMedia({
+      audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true },
+      video: { width: { ideal: 1280 }, height: { ideal: 720 }, facingMode: 'user' }
+    });
+  } catch (_) {
+    try { localStream = await navigator.mediaDevices.getUserMedia({ audio: true, video: false }); } catch (_) {}
+    try {
+      const videoStream = await navigator.mediaDevices.getUserMedia({
+        audio: false,
+        video: { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 720 } }
+      });
+      if (!localStream) localStream = new MediaStream();
+      videoStream.getVideoTracks().forEach((track) => localStream.addTrack(track));
+    } catch (error) {
+      $('lobbyNote').textContent = mediaErrorMessage(error);
+      $('lobbyNote').hidden = false;
+    }
+  }
+  if (localStream) {
+    $('lobbyVideo').srcObject = localStream;
+    $('lobbyVideo').muted = true;
+    $('lobbyVideo').playsInline = true;
+    $('lobbyVideo').play().catch(() => {});
+  }
   $('lobbyAvatar').querySelector('span').textContent = initials($('userName').value);
+  refreshLobbyButtons();
 }
 function refreshLobbyButtons() {
   setIcon($('lobbyMic'), micOn && audioTrack() ? 'mic' : 'micOff', t(micOn ? 'room.mic.on' : 'room.mic.off'));
@@ -94,7 +173,18 @@ function refreshLobbyButtons() {
   $('lobbyVideo').parentElement.classList.toggle('off', !camOn || !cameraTrack());
 }
 $('lobbyMic').addEventListener('click', () => { micOn = !micOn; if (audioTrack()) audioTrack().enabled = micOn; refreshLobbyButtons(); });
-$('lobbyCam').addEventListener('click', () => { camOn = !camOn; if (cameraTrack()) cameraTrack().enabled = camOn; refreshLobbyButtons(); });
+$('lobbyCam').addEventListener('click', async () => {
+  if (!cameraTrack()) {
+    camOn = true;
+    const ok = await ensureCamera();
+    refreshLobbyButtons();
+    if (!ok) return;
+  } else {
+    camOn = !camOn;
+    cameraTrack().enabled = camOn;
+  }
+  refreshLobbyButtons();
+});
 $('userName').addEventListener('input', () => { $('lobbyAvatar').querySelector('span').textContent = initials($('userName').value); });
 
 function parseCode(v) {
@@ -380,8 +470,16 @@ $('micBtn').addEventListener('click', () => {
   applyMyTile(); refreshControls(); sendState();
   if (!micOn) pauseSR(); else if (srWanted) launchSR();
 });
-$('camBtn').addEventListener('click', () => {
-  camOn = !camOn; if (cameraTrack()) cameraTrack().enabled = camOn;
+$('camBtn').addEventListener('click', async () => {
+  if (!cameraTrack()) {
+    camOn = true;
+    const ok = await ensureCamera();
+    if (!ok) { toast($('lobbyNote').textContent); return; }
+  } else {
+    camOn = !camOn;
+    cameraTrack().enabled = camOn;
+    await setOutgoingVideo(camOn ? cameraTrack() : null);
+  }
   applyMyTile(); refreshControls(); sendState();
 });
 $('panelBtn').addEventListener('click', () => { $('call').classList.toggle('no-side'); refreshControls(); layoutGrid(); });
