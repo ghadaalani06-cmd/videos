@@ -1,0 +1,7 @@
+(() => {
+const KEY='screenstudio-theme',root=document.documentElement;
+function apply(t){const v=t==='light'?'light':'dark';root.dataset.theme=v;if(document.body)document.body.dataset.theme=v;const b=document.getElementById('themeToggle');if(b){b.textContent=v==='light'?'🌙':'☀️';b.title=v==='light'?'Switch to dark mode':'Switch to light mode';b.setAttribute('aria-label',b.title)}const m=document.querySelector('meta[name="theme-color"]');if(m)m.content=v==='light'?'#f5f7fc':'#0f1226'}
+let theme='dark';try{theme=localStorage.getItem(KEY)||'dark'}catch(_){}apply(theme);
+function install(){if(document.getElementById('themeToggle'))return;const host=document.querySelector('.topbar')||document.querySelector('.shell > header')||document.querySelector('header.top');if(!host)return;const b=document.createElement('button');b.id='themeToggle';b.type='button';b.className='nav theme-toggle-app';b.textContent=root.dataset.theme==='light'?'🌙':'☀️';b.addEventListener('click',()=>{const n=root.dataset.theme==='light'?'dark':'light';apply(n);try{localStorage.setItem(KEY,n)}catch(_){}});const lang=document.getElementById('langBtn');if(lang&&lang.parentElement===host)lang.insertAdjacentElement('afterend',b);else host.appendChild(b)}
+if(document.readyState==='loading')document.addEventListener('DOMContentLoaded',install,{once:true});else install();
+})();
