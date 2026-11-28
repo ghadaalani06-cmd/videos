@@ -149,7 +149,21 @@
       <a class="ghost link" href="index.html" id="homeLink" data-i18n="room.home">Back to home</a>
     </section>
   </main>
+<script>
+const DEFAULT_SERVER_URL = "https://videos-bwct.onrender.com/";
 
+function getMeetingServerUrl() {
+    const savedUrl = localStorage.getItem("meetingServerUrl");
+
+    if (savedUrl !== DEFAULT_SERVER_URL) {
+        localStorage.setItem("meetingServerUrl", DEFAULT_SERVER_URL);
+    }
+
+    return DEFAULT_SERVER_URL;
+}
+
+const SERVER_URL = getMeetingServerUrl();
+</script>
   <script src="i18n.js"></script><script src="app-ui.js"></script>
   <script src="pwa.js"></script>
   <script src="room.js"></script>
