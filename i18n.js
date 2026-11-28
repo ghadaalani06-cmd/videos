@@ -210,7 +210,7 @@ const I18N = {
     'room.help.sleep': 'خوادم Render المجانية تنام عندما لا يستخدمها أحد، لذلك قد تستغرق الزيارة الأولى نحو دقيقة. افتح العنوان قبل الاجتماع بدقيقة.',
     'room.spotlight': 'اضغط للتكبير، واضغط مرة أخرى للرجوع', 'room.panel.hide': 'إخفاء اللوحة الجانبية', 'room.panel.show': 'إظهار اللوحة الجانبية',
     'room.fs': 'ملء الشاشة', 'room.fs.exit': 'إنهاء ملء الشاشة',
-    'room.copy': 'نسخ رابط الدعوة', 'room.copied': 'تم نسخ الرابط', 'room.people': '{n} في الاجتماع',
+    'room.copy': 'نسخ رابط الدعوة', 'room.copied': 'تم نسخ الرابط', 'room.shareMeeting': 'مشاركة الاجتماع', 'room.shareMeetPage': 'مشاركة «اجتمع مع الآخرين»', 'room.people': '{n} في الاجتماع',
     'room.mic.on': 'كتم الصوت', 'room.mic.off': 'إلغاء الكتم', 'room.cam.on': 'إيقاف الكاميرا', 'room.cam.off': 'تشغيل الكاميرا',
     'room.share': 'مشاركة الشاشة', 'room.share.stop': 'إيقاف المشاركة', 'room.rec': 'تسجيل', 'room.rec.stop': 'إيقاف التسجيل', 'room.leave': 'مغادرة',
     'room.you': 'أنت', 'room.joined': 'انضم {name}', 'room.left': 'غادر {name}',
