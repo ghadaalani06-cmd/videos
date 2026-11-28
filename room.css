@@ -120,3 +120,11 @@ body.in-call .call { margin-top: 8px; gap: 10px; }
   .ended-card { width: 100%; padding: 18px; }
 }
 @media (max-width: 380px) { .grid { grid-template-columns: minmax(0,1fr); } .controls { grid-template-columns: repeat(3,minmax(0,1fr)); } }
+
+
+/* Chat recipient and emoji controls */
+.chat-recipient { display: flex; align-items: center; gap: 8px; font-size: .85rem; color: var(--mist); }
+.chat-recipient select { flex: 1; min-width: 0; padding: 8px 10px; border: 1px solid var(--edge); border-radius: 9px; background: var(--ink); color: var(--paper); }
+.chat-emojis { display: flex; align-items: center; flex-wrap: wrap; gap: 5px; color: var(--mist); font-size: .8rem; }
+.chat-emojis .emoji-btn { padding: 5px 7px; border: 1px solid var(--edge); border-radius: 8px; background: rgba(255,255,255,.05); font-size: 1.05rem; line-height: 1.2; cursor: pointer; }
+.chat-emojis .emoji-btn:active { transform: scale(.94); }
