@@ -100,10 +100,17 @@ async function ensureCamera() {
   }
   try {
     // Request video from the button's user gesture; this is important on iOS Safari.
-    const videoStream = await navigator.mediaDevices.getUserMedia({
-      audio: false,
-      video: { facingMode: 'user', width: { ideal: 1280 }, height: { ideal: 720 } }
-    });
+    let videoStream;
+    try {
+      videoStream = await navigator.mediaDevices.getUserMedia({
+        audio: false,
+        video: { facingMode: { ideal: 'user' }, width: { ideal: 1280 }, height: { ideal: 720 } }
+      });
+    } catch (firstError) {
+      // Some mobile browsers reject ideal/facingMode constraints; retry with the
+      // simplest camera request before reporting a permission/device error.
+      videoStream = await navigator.mediaDevices.getUserMedia({ audio: false, video: true });
+    }
     if (!localStream) localStream = new MediaStream();
     videoStream.getVideoTracks().forEach((track) => {
       track.enabled = camOn;
@@ -214,6 +221,12 @@ async function enterRoom(id) {
   myName = ($('userName').value || '').trim() || 'Guest';
   try { localStorage.setItem('userName', myName); } catch (_) {}
   $('lobbyNote').hidden = true;
+  // iOS Safari is more reliable when camera permission is requested directly
+  // from the user's Start/Join button gesture, rather than only on page load.
+  if (!cameraTrack()) {
+    await ensureCamera();
+    refreshLobbyButtons();
+  }
   if (!(await checkServer())) {
     $('lobbyNote').textContent = 'The meeting server is not responding yet. Please try again in a moment.';
     $('lobbyNote').hidden = false;
