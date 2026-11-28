@@ -112,7 +112,7 @@ async function updateFaceBackground(){
   if (!window.showSaveFilePicker) el.diskGroup.hidden = true;
   if (!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia) {
     $('unsupported').hidden = false;
-    el.start.disabled = true;
+    // Camera-only recording uses getUserMedia and must remain available.
   }
 })();
 
@@ -169,6 +169,10 @@ async function startRecording() {
     const fps = Number(el.fps.value);
 
     if (!cameraOnlyMode) {
+      // Screen and Meeting modes require browser screen-capture support.
+      if (!navigator.mediaDevices || !navigator.mediaDevices.getDisplayMedia) {
+        throw new Error('Screen recording is not supported in this browser. Use Camera only, or open this page in a supported desktop browser.');
+      }
       // Ask for screen sharing only in Screen and Meeting modes.
       const videoConstraints = { frameRate: { ideal: fps }, width: { ideal: w }, height: { ideal: h } };
       if (el.source.value) videoConstraints.displaySurface = el.source.value;
@@ -209,6 +213,8 @@ async function startRecording() {
         await startCompositor();
       } catch (e) {
         stopCompositor();
+        // Do not continue with an empty stream when camera-only capture fails.
+        if (cameraOnlyMode) throw e;
       }
     }
     if (compositing) {
@@ -462,7 +468,12 @@ async function startCompositor() {
   await Promise.all([camVideo ? videoReady(camVideo) : null, screenVideo ? videoReady(screenVideo) : null]);
 
   const sourceVideo = screenVideo || camVideo;
-  const sourceTrack = displayStream ? displayStream.getVideoTracks()[0] : camStream.getVideoTracks()[0];
+  const sourceTrack = displayStream
+    ? displayStream.getVideoTracks()[0]
+    : camStream?.getVideoTracks()[0];
+  if (!sourceTrack || !sourceVideo) {
+    throw new Error('Could not start the camera. Check camera permission and try again.');
+  }
   const s = sourceTrack.getSettings();
   let W = s.width || sourceVideo.videoWidth || 1920;
   let H = s.height || sourceVideo.videoHeight || 1080;
