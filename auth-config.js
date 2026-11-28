@@ -1,0 +1,2 @@
+// Supabase publishable key is designed for browser use. Never put a secret/service_role key here.
+window.SCREENSTUDIO_SUPABASE={url:"https://ixamlnbwiloljjausfhi.supabase.co",anonKey:"sb_publishable_6IET7vw0BPfNjMm0bZdyyA_AtekS37m"};
