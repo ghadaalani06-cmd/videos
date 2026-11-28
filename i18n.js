@@ -117,6 +117,7 @@ const I18N = {
     'hub.meet': 'Record a meeting', 'hub.meet.d': 'Capture a call with a live Arabic or English transcript, notes and action items.',
     'hub.edit': 'Edit a video', 'hub.edit.d': 'Trim, cut, crop, change speed and add text.',
     'hub.privacy': 'Everything stays on your device. Nothing is uploaded.', 'hub.install': 'Install app',
+    'meet.page.title':'Meetings · Screen Recorder','meet.page.heading':'Meetings','meet.page.lead':'Start a video meeting or join with a room link.','meet.page.subheading':'Meet face to face','meet.page.description':'Create a private room link and share it with the people you want to invite. Meetings are provided by Jitsi Meet and open in a new tab.','meet.page.create':'Create a meeting','meet.page.join':'Join meeting','meet.page.room':'Enter meeting room name or link','meet.page.copy':'Copy invite link','meet.page.privacy':'Privacy & capabilities','meet.page.privacyText':'Camera and microphone permissions are requested by the meeting provider when you join. For private or production use, deploy your own Jitsi/LiveKit service and configure authentication. The meeting service is not hosted by this extension.','meet.page.back':'← Back to recorder',
   },
   ar: {
     'title.recorder': 'مسجّل الشاشة', 'title.editor': 'محرر الفيديو',
@@ -231,6 +232,7 @@ const I18N = {
     'hub.meet': 'تسجيل اجتماع', 'hub.meet.d': 'سجّل مكالمة مع نص مباشر بالعربية أو الإنجليزية وملاحظات ومهام.',
     'hub.edit': 'تحرير فيديو', 'hub.edit.d': 'قصّ وتقطيع وتغيير الإطار والسرعة وإضافة نص.',
     'hub.privacy': 'كل شيء يبقى على جهازك. لا يُرفع أي شيء.', 'hub.install': 'تثبيت التطبيق',
+    'meet.page.title':'الاجتماعات · مسجّل الشاشة','meet.page.heading':'الاجتماعات','meet.page.lead':'ابدأ اجتماع فيديو أو انضم باستخدام رابط الغرفة.','meet.page.subheading':'التقِ وجهًا لوجه','meet.page.description':'أنشئ رابط غرفة خاصًا وشاركه مع الأشخاص الذين تريد دعوتهم. تُقدَّم الاجتماعات عبر Jitsi Meet وتُفتح في علامة تبويب جديدة.','meet.page.create':'إنشاء اجتماع','meet.page.join':'الانضمام إلى اجتماع','meet.page.room':'أدخل اسم غرفة الاجتماع أو الرابط','meet.page.copy':'نسخ رابط الدعوة','meet.page.privacy':'الخصوصية والإمكانات','meet.page.privacyText':'سيطلب مزوّد الاجتماع إذن الكاميرا والميكروفون عند الانضمام. للاستخدام الخاص أو الإنتاجي، انشر خدمة Jitsi أو LiveKit خاصة بك واضبط المصادقة. خدمة الاجتماع ليست مستضافة ضمن هذه الإضافة.','meet.page.back':'→ العودة إلى المسجّل',
   },
 };
 
