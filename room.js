@@ -445,7 +445,7 @@ function handleMsg({ from, type, payload }) {
   if (type === 'signal') { handleSignal(from, payload); return; }
   if (!p) return;
   if (type === 'state') { p.state = payload; applyTileState(p); }
-  else if (type === 'chat') addChat(p.name, payload.text, payload.ts, false);
+  else if (type === 'chat') addChat(p.name, payload.text, payload.ts, false, !!payload.private);
   else if (type === 'caption') addCaption({ name: p.name, ts: payload.ts, text: payload.text });
   else if (type === 'rec') { p.recording = !!payload.on; updateRecBanner(); }
 }
@@ -560,21 +560,30 @@ function refreshChatRecipients() {
     select.appendChild(option);
   }
   select.value = peers.has(selected) ? selected : 'all';
+  select.disabled = peers.size === 0;
+  select.title = peers.size ? '' : t('room.chat.waiting');
 }
-function addChat(name, text, ts, mine) {
+function addChat(name, text, ts, mine, privateChat = false, recipientName = '') {
   const m = document.createElement('div'); m.className = 'msg' + (mine ? ' me' : '');
   const who = document.createElement('span'); who.className = 'who';
-  who.textContent = name + ' · ' + new Date(ts || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  const privateLabel = privateChat ? (mine ? t('room.chat.privateTo', { name: recipientName }) : t('room.chat.private')) + ' · ' : '';
+  who.textContent = privateLabel + name + ' · ' + new Date(ts || Date.now()).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   const p = document.createElement('p'); p.dir = 'auto'; p.textContent = text;
   m.append(who, p); $('chatLog').appendChild(m); $('chatLog').scrollTop = $('chatLog').scrollHeight;
 }
 function sendChat() {
   const text = $('chatText').value.trim(); if (!text) return;
   const ts = Date.now(); $('chatText').value = '';
-  addChat(myName, text, ts, true);
   const recipient = $('chatRecipient').value;
-  if (recipient === 'all') broadcastMsg('chat', { text, ts });
-  else sendTo(recipient, 'chat', { text, ts });
+  if (recipient === 'all') {
+    addChat(myName, text, ts, true);
+    broadcastMsg('chat', { text, ts });
+  } else {
+    const peer = peers.get(recipient);
+    if (!peer) { refreshChatRecipients(); toast(t('room.chat.waiting')); return; }
+    addChat(myName, text, ts, true, true, peer.name);
+    sendTo(recipient, 'chat', { text, ts, private: true });
+  }
 }
 $('chatSend').addEventListener('click', sendChat);
 $('chatText').addEventListener('keydown', (e) => { if (e.key === 'Enter') { e.preventDefault(); sendChat(); } });
