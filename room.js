@@ -530,6 +530,26 @@ async function stopShare() {
 $('copyLink').addEventListener('click', async () => {
   try { await navigator.clipboard.writeText(inviteLink()); toast(t('room.copied')); } catch (_) {}
 });
+async function shareUrl(url, title, fallbackMessage) {
+  try {
+    if (navigator.share) await navigator.share({ title, text: title, url });
+    else if (navigator.clipboard && navigator.clipboard.writeText) {
+      await navigator.clipboard.writeText(url);
+      toast(t('room.copied'));
+    } else {
+      window.prompt(fallbackMessage, url);
+    }
+  } catch (error) {
+    if (error && error.name !== 'AbortError') toast(fallbackMessage);
+  }
+}
+$('shareMeeting').addEventListener('click', () => {
+  if (roomId) shareUrl(inviteLink(), t('room.shareMeeting'), t('room.copied'));
+});
+$('shareMeetPage').addEventListener('click', () => {
+  const url = new URL('room.html', location.href).href;
+  shareUrl(url, t('room.shareMeetPage'), t('room.copied'));
+});
 function inviteLink() {
   const base = BASE ? BASE.replace(/\/+$/, '') + '/' : location.href;
   return new URL('room.html?r=' + roomId, base).href;
