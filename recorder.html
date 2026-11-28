@@ -19,6 +19,7 @@
       <a class="nav" href="room.html" data-i18n="nav.room">Meet with people</a>
       <a class="nav" href="editor.html" target="_blank" rel="noopener" data-i18n="nav.editor">Video editor</a>
       <button class="nav" id="langBtn" type="button" data-i18n="nav.lang">العربية</button>
+      <button class="nav" id="logoutBtn" type="button" data-logout-en="Sign out" data-logout-ar="تسجيل الخروج">Sign out</button>
     </div>
   </header>
 
@@ -291,5 +292,19 @@
   <script src="clipstore.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation/selfie_segmentation.js" crossorigin="anonymous"></script>
   <script src="recorder.js"></script>
-<script src="auth-config.js"></script><script type="module" src="auth-guard.js"></script><script>const m=document.querySelector('[data-menu-en]');if(m){const l=localStorage.getItem('lang')||'en';m.textContent=m.dataset['menu'+(l==='ar'?'Ar':'En')];}</script></body>
+<script src="auth-config.js"></script><script type="module" src="auth-guard.js"></script><script>const m=document.querySelector('[data-menu-en]');if(m){const l=localStorage.getItem('lang')||'en';m.textContent=m.dataset['menu'+(l==='ar'?'Ar':'En')];}</script>
+<script type="module">
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+const cfg=window.SCREENSTUDIO_SUPABASE||{};
+const btn=document.getElementById('logoutBtn');
+if(btn){
+ const lang=localStorage.getItem('lang')||'en';
+ btn.textContent=btn.dataset[lang==='ar'?'logoutAr':'logoutEn'];
+ btn.addEventListener('click',async()=>{
+  btn.disabled=true;
+  try{if(cfg.url&&cfg.anonKey){const client=createClient(cfg.url,cfg.anonKey);await client.auth.signOut();}}
+  finally{location.replace('index.html');}
+ });
+}
+</script></body>
 </html>
