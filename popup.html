@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Screen Recorder</title>
+  <link rel="stylesheet" href="popup.css">
+</head>
+<body>
+  <header class="brand">
+    <img src="icons/icon48.png" alt="" width="36" height="36">
+    <div><h1>Screen Recorder</h1><p>Capture, meet and create</p></div>
+    <span class="version">2.2</span>
+  </header>
+  <main>
+    <section class="status" aria-live="polite">
+      <span class="dot"></span><span id="statusText">Ready when you are</span>
+    </section>
+    <div class="actions">
+      <button class="action primary" data-page="recorder.html"><span class="symbol">●</span><span><strong>Record screen</strong><small>Capture screen, camera and audio</small></span><b>↗</b></button>
+      <button class="action" data-page="room.html"><span class="symbol">◉</span><span><strong>Start a meeting</strong><small>Meet people with live captions</small></span><b>↗</b></button>
+      <button class="action" data-page="editor.html"><span class="symbol">✂</span><span><strong>Video editor</strong><small>Trim and prepare your recordings</small></span><b>↗</b></button>
+    </div>
+    <section class="shortcuts">
+      <h2>Keyboard shortcuts</h2>
+      <p><span>Open recorder</span><kbd>Alt</kbd> + <kbd>Shift</kbd> + <kbd>R</kbd></p>
+      <p><span>Open meeting</span><kbd>Alt</kbd> + <kbd>Shift</kbd> + <kbd>M</kbd></p>
+      <p><span>Open editor</span><kbd>Alt</kbd> + <kbd>Shift</kbd> + <kbd>E</kbd></p>
+    </section>
+  </main>
+  <footer><span>Free · No watermark</span><a href="https://github.com/ghadaalani06-cmd/videos" target="_blank" rel="noreferrer">About extension ↗</a></footer>
+  <script src="popup.js"></script>
+</body>
+</html>
