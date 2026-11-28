@@ -152,17 +152,19 @@
 <script>
 const DEFAULT_SERVER_URL = "https://videos-bwct.onrender.com/";
 
-function getMeetingServerUrl() {
-    const savedUrl = localStorage.getItem("meetingServerUrl");
+// Shared server configuration for desktop and mobile browsers
+function initializeMeetingServer() {
+    localStorage.setItem("meetingServerUrl", DEFAULT_SERVER_URL);
 
-    if (savedUrl !== DEFAULT_SERVER_URL) {
-        localStorage.setItem("meetingServerUrl", DEFAULT_SERVER_URL);
-    }
-
-    return DEFAULT_SERVER_URL;
+    return localStorage.getItem("meetingServerUrl");
 }
 
-const SERVER_URL = getMeetingServerUrl();
+const SERVER_URL = initializeMeetingServer();
+
+// Connect to your meeting server
+// Requires Socket.IO client if using io()
+const socket = io(SERVER_URL);
+
 </script>
   <script src="i18n.js"></script><script src="app-ui.js"></script>
   <script src="pwa.js"></script>
