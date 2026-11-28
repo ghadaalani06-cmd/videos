@@ -149,23 +149,7 @@
       <a class="ghost link" href="index.html" id="homeLink" data-i18n="room.home">Back to home</a>
     </section>
   </main>
-<script>
-const DEFAULT_SERVER_URL = "https://videos-bwct.onrender.com/";
 
-// Shared server configuration for desktop and mobile browsers
-function initializeMeetingServer() {
-    localStorage.setItem("meetingServerUrl", DEFAULT_SERVER_URL);
-
-    return localStorage.getItem("meetingServerUrl");
-}
-
-const SERVER_URL = initializeMeetingServer();
-
-// Connect to your meeting server
-// Requires Socket.IO client if using io()
-const socket = io(SERVER_URL);
-
-</script>
   <script src="i18n.js"></script><script src="app-ui.js"></script>
   <script src="pwa.js"></script>
   <script src="room.js"></script>
