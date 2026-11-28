@@ -15,7 +15,7 @@
     <span class="tally" aria-hidden="true"></span>
     <h1 data-i18n="title.room">Meeting room</h1>
     <p data-i18n="tagline">Free. No watermark. No time limit.</p>
-    <div class="topbar">
+    <div class="topbar"><a class="nav menu-return" href="index.html"><span data-menu-en="← Main menu" data-menu-ar="← القائمة الرئيسية">← Main menu</span></a>
       <a class="nav" href="recorder.html" data-i18n="nav.recorder">Back to recorder</a>
       <button class="nav" id="langBtn" type="button" data-i18n="nav.lang">العربية</button>
     </div>
@@ -153,5 +153,5 @@
   <script src="i18n.js"></script><script src="app-ui.js"></script>
   <script src="pwa.js"></script>
   <script src="room.js"></script>
-</body>
+<script src="auth-config.js"></script><script type="module" src="auth-guard.js"></script><script>const m=document.querySelector('[data-menu-en]');if(m){const l=localStorage.getItem('lang')||'en';m.textContent=m.dataset['menu'+(l==='ar'?'Ar':'En')];}</script></body>
 </html>
