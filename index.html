@@ -106,5 +106,29 @@
       try { localStorage.setItem('screenstudio-theme', next); } catch (_) {}
     });
   </script>
+  <script src="auth-config.js"></script>
+  <script type="module">
+    import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+    const cfg = window.SCREENSTUDIO_SUPABASE || {};
+    if (cfg.url && cfg.anonKey) {
+      const client = createClient(cfg.url, cfg.anonKey);
+      client.auth.getSession().then(({ data, error }) => {
+        if (error || !data.session) return;
+        const user = data.session.user;
+        const displayName = user.user_metadata?.full_name || user.email?.split('@')[0] || 'there';
+        const heading = document.querySelector('.hero-copy h1');
+        const subtitle = document.querySelector('.hero-sub');
+        if (heading) heading.innerHTML = 'Welcome, ' + displayName.replace(/[&<>"]/g, '') + '<br><span>Ready to create?</span>';
+        if (subtitle) subtitle.textContent = 'You’re signed in. Choose a tool below to start recording, meet with people, or edit a video.';
+        document.querySelectorAll('[data-auth="signin"],[data-auth="signup"]').forEach(link => link.hidden = true);
+        const meet = document.querySelector('.hero-actions a.secondary');
+        if (meet) meet.href = 'room.html';
+        document.querySelectorAll('a[href="auth.html?next=room.html"],a[href="auth.html?next=editor.html"],a[href="auth.html?next=recorder.html"]').forEach(link => {
+          const target = link.href.includes('room.html') ? 'room.html' : link.href.includes('editor.html') ? 'editor.html' : 'recorder.html';
+          link.href = target;
+        });
+      });
+    }
+  </script>
 </body>
 </html>
