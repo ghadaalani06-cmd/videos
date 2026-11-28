@@ -435,7 +435,7 @@ async function startExport() {
     if (cancelled) { say(t('ed.cancelled')); return; }
     const blob = new Blob(chunks, { type: mime.split(';')[0] });
     if (outUrl) URL.revokeObjectURL(outUrl);
-    outUrl = URL.createObjectURL(blob);
+    outUrl = URL.createObjectURL(blob);\n    window.setShareableVideo?.(blob, `${baseName}-edited-${stamp()}.${ext}`);
     el.download.href = outUrl;
     el.download.download = `${baseName}-edited-${stamp()}.${ext}`;
     el.result.hidden = false;
