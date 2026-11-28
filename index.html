@@ -110,6 +110,31 @@
       const client = createClient(cfg.url, cfg.anonKey);
       client.auth.getSession().then(({ data, error }) => {
         if (error || !data.session) return;
+        const navLinks = document.querySelector('.nav-links');
+        const signOutButton = document.createElement('button');
+        signOutButton.type = 'button';
+        signOutButton.className = 'nav-cta';
+        signOutButton.style.cssText = 'border:0;cursor:pointer;font:inherit';
+        signOutButton.textContent = document.documentElement.lang === 'ar' ? 'تسجيل الخروج' : 'Sign out';
+        signOutButton.setAttribute('data-auth-signout', 'true');
+        navLinks.appendChild(signOutButton);
+        document.querySelectorAll('[data-auth="signin"],[data-auth="signup"]').forEach(link => link.hidden = true);
+        const langObserver = new MutationObserver(() => {
+          signOutButton.textContent = document.documentElement.lang === 'ar' ? 'تسجيل الخروج' : 'Sign out';
+        });
+        langObserver.observe(document.documentElement, { attributes: true, attributeFilter: ['lang'] });
+        signOutButton.addEventListener('click', async () => {
+          signOutButton.disabled = true;
+          signOutButton.textContent = document.documentElement.lang === 'ar' ? 'جارٍ تسجيل الخروج…' : 'Signing out…';
+          const { error: signOutError } = await client.auth.signOut();
+          if (signOutError) {
+            signOutButton.disabled = false;
+            signOutButton.textContent = document.documentElement.lang === 'ar' ? 'تسجيل الخروج' : 'Sign out';
+            alert(signOutError.message);
+            return;
+          }
+          location.reload();
+        });
         const user = data.session.user;
         const displayName = user.user_metadata?.full_name || user.email?.split('@')[0] || 'there';
         const heading = document.querySelector('.hero-copy h1');
