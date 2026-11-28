@@ -1,20 +1,33 @@
-// Opens (or focuses) the recorder page when the toolbar icon is clicked.
-const RECORDER_URL = chrome.runtime.getURL('recorder.html');
+// Opens or focuses one of the extension's tools.
+const ROUTES = {
+  "open-recorder": "recorder.html",
+  "open-meeting": "room.html",
+  "open-editor": "editor.html"
+};
 
-chrome.action.onClicked.addListener(async () => {
-  const tabs = await chrome.tabs.query({ url: RECORDER_URL });
-  if (tabs.length) {
-    await chrome.tabs.update(tabs[0].id, { active: true });
-    await chrome.windows.update(tabs[0].windowId, { focused: true });
+async function openTool(page) {
+  const target = chrome.runtime.getURL(page);
+  const tabs = await chrome.tabs.query({});
+  const existing = tabs.find(tab => tab.url === target);
+  if (existing) {
+    await chrome.tabs.update(existing.id, { active: true });
+    if (existing.windowId != null) await chrome.windows.update(existing.windowId, { focused: true });
   } else {
-    await chrome.tabs.create({ url: RECORDER_URL });
+    await chrome.tabs.create({ url: target });
   }
+}
+
+chrome.action.onClicked.addListener(() => openTool("recorder.html"));
+
+chrome.commands.onCommand.addListener(command => {
+  const page = ROUTES[command];
+  if (page) openTool(page);
 });
 
-// Shows a REC badge on the toolbar icon while recording.
-chrome.runtime.onMessage.addListener((msg) => {
-  if (msg && msg.type === 'recording-state') {
-    chrome.action.setBadgeBackgroundColor({ color: msg.paused ? '#B7791F' : '#D92D20' });
-    chrome.action.setBadgeText({ text: msg.active ? (msg.paused ? 'II' : 'REC') : '' });
+// Keep the toolbar badge synchronized with the recorder's state.
+chrome.runtime.onMessage.addListener(msg => {
+  if (msg && msg.type === "recording-state") {
+    chrome.action.setBadgeBackgroundColor({ color: msg.paused ? "#B7791F" : "#D92D20" });
+    chrome.action.setBadgeText({ text: msg.active ? (msg.paused ? "II" : "REC") : "" });
   }
 });

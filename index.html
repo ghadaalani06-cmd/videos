@@ -3,67 +3,104 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Screen Recorder</title>
-  <meta name="theme-color" content="#0f1226">
-  <meta name="description" content="Free screen, camera and meeting recorder with live Arabic and English transcripts, plus a video editor. No watermark, no time limit.">
+  <title>Screen Recorder — Capture. Meet. Create.</title>
+  <meta name="theme-color" content="#090d1b">
+  <meta name="description" content="Record your screen, host meetings with live transcripts, and edit videos in one simple workspace.">
   <link rel="icon" href="icons/icon32.png">
-  <link rel="apple-touch-icon" href="icons/icon192.png">
   <link rel="manifest" href="manifest.webmanifest">
-  <link rel="stylesheet" href="recorder.css">
+  <link rel="stylesheet" href="landing.css">
   <link rel="stylesheet" href="hub.css">
 </head>
-<body data-title="title.recorder">
-  <header class="top">
-    <span class="tally" aria-hidden="true"></span>
-    <h1 data-i18n="title.recorder">Screen Recorder</h1>
-    <p data-i18n="tagline">Free. No watermark. No time limit.</p>
-    <div class="topbar">
-      <button class="nav" id="langBtn" type="button" data-i18n="nav.lang">العربية</button>
+<body>
+  <nav class="site-nav">
+    <a class="brand" href="index.html"><span class="brand-mark">●</span> Screen<span>Studio</span></a>
+    <div class="nav-links">
+      <a href="#features">Features</a>
+      <a href="#how-it-works">How it works</a>
+      <a href="#faq">FAQ</a>
+      <a class="nav-cta" href="recorder.html">Start recording <span>↗</span></a>
     </div>
-  </header>
-
-  <main class="hub">
-    <p class="lead" data-i18n="hub.sub"></p>
-    <div class="cards">
-      <a class="card" href="recorder.html">
-        <span class="ico rec" aria-hidden="true"></span>
-        <h2 data-i18n="hub.rec">Record screen</h2>
-        <p data-i18n="hub.rec.d"></p>
-      </a>
-      <a class="card" href="room.html">
-        <span class="ico room" aria-hidden="true"></span>
-        <h2 data-i18n="hub.room">Meet with people</h2>
-        <p data-i18n="hub.room.d"></p>
-      </a>
-      <a class="card" href="recorder.html?mode=meeting">
-        <span class="ico meet" aria-hidden="true"></span>
-        <h2 data-i18n="hub.meet">Record a meeting</h2>
-        <p data-i18n="hub.meet.d"></p>
-      </a>
-      <a class="card" href="editor.html">
-        <span class="ico edit" aria-hidden="true"></span>
-        <h2 data-i18n="hub.edit">Edit a video</h2>
-        <p data-i18n="hub.edit.d"></p>
-      </a>
-    </div>
-    <div class="foot">
-      <p class="privacy" data-i18n="hub.privacy"></p>
-      <button class="ghost install" id="installBtn" type="button" hidden data-i18n="hub.install">Install app</button>
-    </div>
+    <button class="theme-toggle" id="themeToggle" type="button" aria-label="Switch to light mode" title="Switch to light mode">☀️ <span>Light</span></button>
+    <button class="mobile-menu" aria-label="Open menu" id="menuBtn">☰</button>
+  </nav>
+  <main>
+    <section class="hero">
+      <div class="hero-copy">
+        <div class="eyebrow"><span class="live-dot"></span> YOUR ALL-IN-ONE CREATION SPACE</div>
+        <h1>Make every moment<br><span>worth capturing.</span></h1>
+        <p class="hero-sub">Record your screen, bring people together, capture the conversation, and polish your videos — all in one simple workspace.</p>
+        <div class="hero-actions">
+          <a class="button primary" href="recorder.html">Start recording <span>→</span></a>
+          <a class="button secondary" href="room.html">Meet with people</a>
+        </div>
+        <div class="trust-line"><span>✓</span> No watermark <span>✓</span> No recording time limit <span>✓</span> Your files stay yours</div>
+      </div>
+      <div class="hero-visual" aria-label="Product feature preview">
+        <div class="glow"></div>
+        <div class="preview-window">
+          <div class="window-top"><div class="window-dots"><i></i><i></i><i></i></div><span>YOUR WORKSPACE</span><b>•••</b></div>
+          <div class="preview-content">
+            <div class="preview-sidebar"><div class="side-logo">S</div><i class="selected">▣</i><i>◉</i><i>✂</i><i>⚙</i></div>
+            <div class="preview-main">
+              <div class="preview-heading"><small>WORKSPACE / RECORDING</small><strong>Ready when you are.</strong></div>
+              <div class="screen-card"><div class="screen-toolbar"><span><b></b> Live preview</span><span>00:12:48</span></div><div class="screen-art"><div class="art-orbit one"></div><div class="art-orbit two"></div><div class="art-center">S</div><div class="art-caption">Your ideas, in motion.</div></div></div>
+              <div class="preview-controls"><span class="control-red">●</span><span>Screen + microphone</span><span class="control-pill">HD</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="float-card transcript"><span class="float-icon">☷</span><div><b>Live transcript</b><small>Words captured as you speak</small></div><span class="float-check">✓</span></div>
+        <div class="float-card edit-float"><span class="float-icon purple">✂</span><div><b>Video editor</b><small>Make the final cut</small></div></div>
+      </div>
+    </section>
+    <section class="quick-strip" aria-label="Main tools">
+      <a href="recorder.html"><span>◉</span><b>Screen recorder</b><small>Capture screen and camera</small><em>↗</em></a>
+      <a href="recorder.html?mode=meeting"><span>▤</span><b>Meeting recorder</b><small>Keep the important moments</small><em>↗</em></a>
+      <a href="room.html"><span>◎</span><b>Meeting room</b><small>Meet and share live captions</small><em>↗</em></a>
+      <a href="editor.html"><span>✂</span><b>Video editor</b><small>Polish your recordings</small><em>↗</em></a>
+    </section>
+    <section class="features section-wrap" id="features">
+      <div class="section-heading"><div class="eyebrow">ONE WORKSPACE. MORE POSSIBILITIES.</div><h2>Everything you need to<br><span>capture and communicate.</span></h2><p>From the first recording to the final edit, your tools are right where you need them.</p></div>
+      <div class="feature-grid">
+        <article class="feature-card feature-large"><div class="feature-symbol red">◉</div><div class="feature-text"><h3>Screen recording, made simple</h3><p>Capture a tab, window, or your entire screen. Add your camera and microphone when you need a more personal touch.</p><a href="recorder.html">Open recorder →</a></div><div class="mini-screen"><div class="mini-top"><i></i><i></i><i></i></div><div class="mini-play">▶</div><div class="mini-timeline"><b></b></div></div></article>
+        <article class="feature-card"><div class="feature-symbol blue">◎</div><h3>Meet face to face</h3><p>Create a room, invite people, and stay connected with built-in meeting tools.</p><a href="room.html">Open meeting room →</a></article>
+        <article class="feature-card"><div class="feature-symbol green">☷</div><h3>Follow every word</h3><p>Use live speech transcripts to make conversations easier to follow and review. Ask participants before sharing their speech.</p><a href="room.html">Explore meetings →</a></article>
+        <article class="feature-card"><div class="feature-symbol purple">✂</div><h3>Make it yours</h3><p>Bring your recording into the video editor and shape it into something ready to share.</p><a href="editor.html">Open video editor →</a></article>
+      </div>
+    </section>
+    <section class="steps-section" id="how-it-works">
+      <div class="section-wrap steps-inner"><div><div class="eyebrow">A SIMPLE WAY TO GET STARTED</div><h2>From idea to<br><span>finished video.</span></h2><p class="steps-intro">No complicated setup. Choose a tool and get straight to work.</p><a class="button primary" href="recorder.html">Create your first recording →</a></div>
+        <div class="steps-list"><div class="step"><b>01</b><div><h3>Choose your workspace</h3><p>Start a screen recording, launch a meeting, or open the editor.</p></div></div><div class="step"><b>02</b><div><h3>Capture what matters</h3><p>Select your screen and audio sources, then start when you're ready.</p></div></div><div class="step"><b>03</b><div><h3>Review and refine</h3><p>Preview your recording, save your file, and edit it for sharing.</p></div></div></div>
+      </div>
+    </section>
+    <section class="faq section-wrap" id="faq"><div class="section-heading"><div class="eyebrow">GOOD TO KNOW</div><h2>Questions, <span>answered.</span></h2></div><div class="faq-grid">
+      <details><summary>Is the screen recorder free?</summary><p>The app is designed for free recording without a watermark or an imposed recording time limit. Browser and device capabilities may affect available features.</p></details>
+      <details><summary>Can I record my microphone and screen?</summary><p>Yes. Choose the available screen, microphone, and camera sources before recording. Your browser will ask for the required permissions.</p></details>
+      <details><summary>Can I create meetings with live transcripts?</summary><p>Yes. Open a meeting room and enable live transcription where supported. Make sure everyone knows and agrees before sharing their speech.</p></details>
+      <details><summary>Where are my recordings saved?</summary><p>Recordings are handled in your browser. Download or save each recording to your device so you keep a copy.</p></details>
+    </div></section>
+    <section class="final-cta"><div class="eyebrow">READY WHEN YOU ARE</div><h2>Your next great recording<br>starts <span>right here.</span></h2><p>Open your workspace and bring your next idea to life.</p><a class="button light" href="recorder.html">Start recording <span>→</span></a></section>
   </main>
-
-  <script src="i18n.js"></script>
+  <footer class="site-footer"><a class="brand" href="index.html"><span class="brand-mark">●</span> Screen<span>Studio</span></a><p>Capture. Meet. Create.</p><div><a href="recorder.html">Recorder</a><a href="room.html">Meetings</a><a href="editor.html">Editor</a></div><small>© <span id="year"></span> ScreenStudio. Built for your next idea.</small></footer>
   <script src="pwa.js"></script>
   <script>
-    let deferred = null;
-    window.addEventListener('beforeinstallprompt', (e) => {
-      e.preventDefault(); deferred = e;
-      document.getElementById('installBtn').hidden = false;
-    });
-    document.getElementById('installBtn').addEventListener('click', async () => {
-      if (!deferred) return;
-      deferred.prompt(); await deferred.userChoice; deferred = null;
-      document.getElementById('installBtn').hidden = true;
+    document.getElementById('year').textContent = new Date().getFullYear();
+    document.getElementById('menuBtn').addEventListener('click', () => document.querySelector('.nav-links').classList.toggle('open'));
+    const themeButton = document.getElementById('themeToggle');
+    function applyTheme(theme) {
+      document.documentElement.dataset.theme = theme;
+      const light = theme === 'light';
+      themeButton.innerHTML = light ? '🌙 <span>Dark</span>' : '☀️ <span>Light</span>';
+      themeButton.setAttribute('aria-label', light ? 'Switch to dark mode' : 'Switch to light mode');
+      themeButton.title = light ? 'Switch to dark mode' : 'Switch to light mode';
+      document.querySelector('meta[name="theme-color"]').content = light ? '#f5f7fc' : '#090d1b';
+    }
+    let savedTheme = 'dark';
+    try { savedTheme = localStorage.getItem('screenstudio-theme') || 'dark'; } catch (_) {}
+    applyTheme(savedTheme);
+    themeButton.addEventListener('click', () => {
+      const next = document.documentElement.dataset.theme === 'light' ? 'dark' : 'light';
+      applyTheme(next);
+      try { localStorage.setItem('screenstudio-theme', next); } catch (_) {}
     });
   </script>
 </body>
