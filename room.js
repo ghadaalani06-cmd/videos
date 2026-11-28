@@ -1,8 +1,13 @@
 // Meeting rooms: video calls between people (WebRTC), chat, shared live captions, recording and minutes.
 const $ = (id) => document.getElementById(id);
 const IS_EXT = location.protocol === 'chrome-extension:';
-let BASE = '';
-try { BASE = localStorage.getItem('serverUrl') || ''; } catch (_) {}
+const DEFAULT_SERVER_URL = 'https://videos-bwct.onrender.com';
+let BASE = DEFAULT_SERVER_URL;
+// Keep both historical keys in sync, but always use the configured server URL.
+try {
+  localStorage.setItem('serverUrl', DEFAULT_SERVER_URL);
+  localStorage.setItem('meetingServerUrl', DEFAULT_SERVER_URL);
+} catch (_) {}
 const api = (p) => BASE.replace(/\/+$/, '') + p;
 const pad = (n) => String(n).padStart(2, '0');
 const hms = (ms) => { const s = Math.max(0, Math.floor(ms / 1000)); return `${pad(Math.floor(s / 3600))}:${pad(Math.floor((s % 3600) / 60))}:${pad(s % 60)}`; };
@@ -43,32 +48,30 @@ function toast(text) {
 
 // ---------- lobby ----------
 async function checkServer() {
-  try { const r = await fetch(api('/api/health'), { cache: 'no-store' }); return r.ok; } catch (_) { return false; }
+  const controller = typeof AbortController !== 'undefined' ? new AbortController() : null;
+  const timeout = controller ? setTimeout(() => controller.abort(), 25000) : null;
+  try {
+    const r = await fetch(api('/api/health'), {
+      cache: 'no-store',
+      ...(controller ? { signal: controller.signal } : {}),
+    });
+    return r.ok;
+  } catch (_) {
+    return false;
+  } finally {
+    if (timeout) clearTimeout(timeout);
+  }
 }
 async function initLobby() {
   try { $('userName').value = localStorage.getItem('userName') || ''; } catch (_) {}
-  $('serverUrl').value = BASE;
-  const ok = (IS_EXT && !BASE) ? false : await checkServer();
-  if (!ok) {
-    $('serverBox').hidden = false;
-    if (BASE) { $('serverNote').textContent = t('room.server.bad'); $('serverNote').hidden = false; }
-  }
+  // The server is preconfigured for desktop and mobile; no manual URL entry is needed.
+  $('serverBox').hidden = true;
   const r = new URLSearchParams(location.search).get('r');
   if (r) { $('joinRow').hidden = true; $('newMeeting').textContent = t('room.joinas'); }
   await startLobbyMedia();
   refreshLobbyButtons();
 }
-$('useLocal').addEventListener('click', () => { $('serverUrl').value = 'http://localhost:8080'; $('saveServer').click(); });
-$('saveServer').addEventListener('click', async () => {
-  let v = $('serverUrl').value.trim().replace(/\/+$/, '');
-  if (v && !/^https?:\/\//i.test(v)) v = 'https://' + v;
-  BASE = v;
-  try { localStorage.setItem('serverUrl', v); } catch (_) {}
-  const ok = await checkServer();
-  $('serverNote').hidden = ok;
-  if (!ok) $('serverNote').textContent = t('room.server.bad');
-  else $('serverBox').hidden = true;
-});
+// Server URL is fixed in DEFAULT_SERVER_URL; manual server editing is disabled.
 
 async function startLobbyMedia() {
   const attempts = [
@@ -114,15 +117,43 @@ const sendTo = (to, type, payload) => post({ to, type, payload });
 const broadcastMsg = (type, payload) => post({ type, payload });
 
 async function enterRoom(id) {
+  const createButton = $('newMeeting');
+  const joinButton = $('joinBtn');
+  createButton.disabled = true;
+  joinButton.disabled = true;
   myName = ($('userName').value || '').trim() || 'Guest';
   try { localStorage.setItem('userName', myName); } catch (_) {}
-  if (!(await checkServer())) { $('serverBox').hidden = false; $('serverNote').textContent = t('room.server.bad'); $('serverNote').hidden = false; return; }
-  try { const c = await (await fetch(api('/api/config'))).json(); if (c.iceServers) cfg = c; } catch (_) {}
+  $('lobbyNote').hidden = true;
+  if (!(await checkServer())) {
+    $('lobbyNote').textContent = 'The meeting server is not responding yet. Please try again in a moment.';
+    $('lobbyNote').hidden = false;
+    createButton.disabled = false;
+    joinButton.disabled = false;
+    return;
+  }
+  try {
+    const configResponse = await fetch(api('/api/config'), { cache: 'no-store' });
+    if (configResponse.ok) {
+      const c = await configResponse.json();
+      if (c.iceServers) cfg = c;
+    }
+  } catch (_) {}
   roomId = id; myId = rand(12); joinTime = Date.now(); captionLines = []; items = []; seenNames = new Set([myName]);
   $('lobbyVideo').srcObject = null;
-  es = new EventSource(api(`/api/events?room=${encodeURIComponent(id)}&peer=${myId}&name=${encodeURIComponent(myName)}`));
+  try {
+    es = new EventSource(api(`/api/events?room=${encodeURIComponent(id)}&peer=${myId}&name=${encodeURIComponent(myName)}`));
+  } catch (error) {
+    $('lobbyNote').textContent = 'Your browser could not open the meeting connection. Please update Safari and try again.';
+    $('lobbyNote').hidden = false;
+    createButton.disabled = false;
+    joinButton.disabled = false;
+    return;
+  }
   es.addEventListener('welcome', (e) => {
     const { peers: existing } = JSON.parse(e.data);
+    createButton.disabled = false;
+    joinButton.disabled = false;
+    $('lobbyNote').hidden = true;
     if (!inCall) showCall();
     for (const p of existing) { if (!peers.has(p.id)) { const peer = addPeer(p.id, p.name); initiate(peer); } }
     sendState();
@@ -136,7 +167,18 @@ async function enterRoom(id) {
   es.addEventListener('peer-left', (e) => { const p = peers.get(JSON.parse(e.data).id); if (p) toast(t('room.left', { name: p.name })); removePeer(JSON.parse(e.data).id); updateRecBanner(); });
   es.addEventListener('msg', (e) => handleMsg(JSON.parse(e.data)));
   es.addEventListener('full', () => { es.close(); toast(t('room.full')); });
-  es.onerror = () => { if (es && es.readyState === 2 && inCall) toast(t('room.lost')); };
+  es.onerror = () => {
+    if (es && es.readyState === 2) {
+      if (inCall) toast(t('room.lost'));
+      else {
+        $('lobbyNote').textContent = 'Could not connect to the meeting server. Please try again.';
+        $('lobbyNote').hidden = false;
+        createButton.disabled = false;
+        joinButton.disabled = false;
+        es.close();
+      }
+    }
+  };
 }
 
 // ---------- tiles and peers ----------
