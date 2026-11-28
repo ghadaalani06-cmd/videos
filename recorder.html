@@ -84,7 +84,7 @@
         <p class="msg" id="msg" role="status"></p>
         <div class="result" id="result" hidden>
           <h2 data-i18n="rec.ready">Recording ready</h2>
-          <a class="primary link" id="download" download data-i18n="download">Download recording</a>
+          <a class="primary link" id="download" download data-i18n="download">Download recording</a>\n          <button class="secondary" id="shareVideo" type="button" hidden>Share video</button>
           <button class="secondary" id="editBtn" type="button" data-i18n="edit">Edit this recording</button>
           <button class="ghost" id="discard" type="button" data-i18n="discard">Discard and record again</button>
         </div>
@@ -287,7 +287,7 @@
     </aside>
   </main>
 
-  <script src="i18n.js"></script><script src="app-ui.js"></script>
+  <script src="i18n.js"></script><script src="video-share.js"></script><script src="app-ui.js"></script>
   <script src="pwa.js"></script>
   <script src="clipstore.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/@mediapipe/selfie_segmentation/selfie_segmentation.js" crossorigin="anonymous"></script>
