@@ -28,7 +28,7 @@ const HEIGHTS = { 720: [1280, 720], 1080: [1920, 1080], 1440: [2560, 1440], 2160
 let displayStream = null, micStream = null, audioCtx = null, recorder = null;
 let chunks = [], bytes = 0, fileHandle = null, writable = null, writeChain = Promise.resolve();
 let startedAt = 0, pausedTotal = 0, pausedAt = 0, timer = null, blobUrl = null, currentExt = 'webm';
-let recording = false, paused = false;
+let recording = false, paused = false, cameraOnlyMode = false;
 let camStream = null, camVideo = null, screenVideo = null, canvasStream = null, ctx2d = null;
 let compositing = false, timerWorker = null;
 
@@ -168,15 +168,22 @@ async function startRecording() {
     const [w, h] = HEIGHTS[el.quality.value];
     const fps = Number(el.fps.value);
 
-    // Must be called straight from the click so the browser shows the picker.
-    const videoConstraints = { frameRate: { ideal: fps }, width: { ideal: w }, height: { ideal: h } };
-    if (el.source.value) videoConstraints.displaySurface = el.source.value;
-    displayStream = await navigator.mediaDevices.getDisplayMedia({
-      video: videoConstraints,
-      audio: el.sysAudio.checked ? { echoCancellation: false, noiseSuppression: false } : false,
-      systemAudio: 'include',
-      selfBrowserSurface: 'exclude',
-    });
+    if (!cameraOnlyMode) {
+      // Ask for screen sharing only in Screen and Meeting modes.
+      const videoConstraints = { frameRate: { ideal: fps }, width: { ideal: w }, height: { ideal: h } };
+      if (el.source.value) videoConstraints.displaySurface = el.source.value;
+      displayStream = await navigator.mediaDevices.getDisplayMedia({
+        video: videoConstraints,
+        audio: el.sysAudio.checked ? { echoCancellation: false, noiseSuppression: false } : false,
+        systemAudio: 'include',
+        selfBrowserSurface: 'exclude',
+      });
+    } else {
+      // Camera-only mode records the camera without opening the screen picker.
+      el.camera.checked = true;
+      el.layout.value = 'camera';
+      el.sysAudio.checked = false;
+    }
 
     if (el.mic.checked) {
       try {
@@ -197,7 +204,7 @@ async function startRecording() {
     }
 
     stopCamTest();
-    if (el.camera.checked || bgOn()) {
+    if (cameraOnlyMode || el.camera.checked || bgOn()) {
       try {
         await startCompositor();
       } catch (e) {
@@ -213,7 +220,8 @@ async function startRecording() {
     }
 
     if (el.countdown.checked) await runCountdown();
-    if (displayStream.getVideoTracks()[0].readyState === 'ended') throw new Error('Sharing was stopped.');
+    const captureTrack = cameraOnlyMode ? camStream?.getVideoTracks()[0] : displayStream?.getVideoTracks()[0];
+    if (!captureTrack || captureTrack.readyState === 'ended') throw new Error(cameraOnlyMode ? 'Camera was stopped.' : 'Sharing was stopped.');
 
     const finalStream = await buildStream();
     const mime = el.format.value;
@@ -241,7 +249,7 @@ async function startRecording() {
     recorder.onstop = finalize;
     recorder.onerror = (e) => say(t('msg.recerr', { m: e.error?.message || 'unknown' }), true);
 
-    displayStream.getVideoTracks()[0].addEventListener('ended', () => stopRecording());
+    captureTrack.addEventListener('ended', () => stopRecording());
 
     recorder.start(1000);
     recording = true; paused = false;
@@ -261,8 +269,8 @@ async function startRecording() {
 }
 
 async function buildStream() {
-  const videoTracks = compositing ? canvasStream.getVideoTracks() : displayStream.getVideoTracks();
-  const sysTracks = displayStream.getAudioTracks();
+  const videoTracks = compositing ? canvasStream.getVideoTracks() : (displayStream ? displayStream.getVideoTracks() : camStream.getVideoTracks());
+  const sysTracks = displayStream ? displayStream.getAudioTracks() : [];
   const micTracks = micStream ? micStream.getAudioTracks() : [];
   let audioTracks = [];
   if (sysTracks.length || micTracks.length) {
@@ -449,12 +457,14 @@ async function startCompositor() {
       if (!bgOn()) throw e;
     }
   }
-  screenVideo = hiddenVideo(displayStream);
-  await Promise.all([camVideo ? videoReady(camVideo) : null, videoReady(screenVideo)]);
+  if (displayStream) screenVideo = hiddenVideo(displayStream);
+  await Promise.all([camVideo ? videoReady(camVideo) : null, screenVideo ? videoReady(screenVideo) : null]);
 
-  const s = displayStream.getVideoTracks()[0].getSettings();
-  let W = s.width || screenVideo.videoWidth || 1920;
-  let H = s.height || screenVideo.videoHeight || 1080;
+  const sourceVideo = screenVideo || camVideo;
+  const sourceTrack = displayStream ? displayStream.getVideoTracks()[0] : camStream.getVideoTracks()[0];
+  const s = sourceTrack.getSettings();
+  let W = s.width || sourceVideo.videoWidth || 1920;
+  let H = s.height || sourceVideo.videoHeight || 1080;
   const maxH = HEIGHTS[el.quality.value][1];
   if (H > maxH) { W = Math.round(W * maxH / H); H = maxH; }
   el.canvas.width = W - (W % 2);
@@ -722,7 +732,7 @@ const M = {
   panel: $('meetingPanel'), section: $('meetSection'),
   transcript: $('transcript'), tEmpty: $('transcriptEmpty'),
   noteType: $('noteType'), noteText: $('noteText'), noteAdd: $('noteAdd'), noteList: $('noteList'), markBtn: $('markBtn'),
-  modeScreen: $('modeScreen'), modeMeeting: $('modeMeeting'), result: $('meetResult'),
+  modeScreen: $('modeScreen'), modeMeeting: $('modeMeeting'), modeCamera: $('modeCamera'), result: $('meetResult'),
   dlMin: $('dlMinutes'), dlSrt: $('dlSrt'), copy: $('copyMinutes'),
 };
 let mixedTrack = null;
@@ -730,28 +740,38 @@ let lines = [], items = [], meetStart = 0, meetDurMs = 0;
 let sr = null, srWanted = false, interimEl = null;
 const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
 
-function setMode(meeting) {
+function setMode(meeting, cameraOnly = false) {
   mode.meeting = meeting;
+  cameraOnlyMode = cameraOnly;
   document.body.classList.toggle('meeting-mode', meeting);
-  M.modeScreen.classList.toggle('on', !meeting);
+  M.modeScreen.classList.toggle('on', !meeting && !cameraOnly);
   M.modeMeeting.classList.toggle('on', meeting);
-  M.modeScreen.setAttribute('aria-pressed', String(!meeting));
+  M.modeCamera.classList.toggle('on', cameraOnly);
+  M.modeScreen.setAttribute('aria-pressed', String(!meeting && !cameraOnly));
   M.modeMeeting.setAttribute('aria-pressed', String(meeting));
-  M.panel.hidden = !meeting && !$('screenTranscriptOn').checked;
-  M.section.hidden = !meeting && !$('screenTranscriptOn').checked;
+  M.modeCamera.setAttribute('aria-pressed', String(cameraOnly));
+  el.camera.checked = cameraOnly;
+  if (cameraOnly) {
+    el.camOptions.hidden = false; el.layout.value = 'camera';
+    el.sysAudio.checked = false; el.mic.checked = true; el.micOptions.hidden = false;
+  } else {
+    syncCamUI();
+  }
+  M.panel.hidden = cameraOnly || (!meeting && !$('screenTranscriptOn').checked);
+  M.section.hidden = cameraOnly || (!meeting && !$('screenTranscriptOn').checked);
   M.result.hidden = true;
-  el.start.textContent = t(meeting ? 'start.meeting' : 'start');
+  el.start.textContent = t(cameraOnly ? 'start.camera' : meeting ? 'start.meeting' : 'start');
   if (meeting && !mode.presetApplied) {
     mode.presetApplied = true;
-    // Sensible defaults for calls: capture a tab with its sound plus your microphone.
     el.source.value = 'browser'; el.sysAudio.checked = true;
     el.mic.checked = true; el.micOptions.hidden = false;
     el.quality.value = '720'; el.fps.value = '30'; el.countdown.checked = false;
     M.lang.value = LANG === 'ar' ? 'ar-AE' : 'en-US';
   }
 }
-M.modeScreen.addEventListener('click', () => { if (!recording) setMode(false); });
-M.modeMeeting.addEventListener('click', () => { if (!recording) setMode(true); });
+M.modeScreen.addEventListener('click', () => { if (!recording) setMode(false, false); });
+M.modeMeeting.addEventListener('click', () => { if (!recording) setMode(true, false); });
+M.modeCamera.addEventListener('click', () => { if (!recording) setMode(false, true); });
 if (new URLSearchParams(location.search).get('mode') === 'meeting') setMode(true);
 
 // ---------- helpers ----------
