@@ -762,7 +762,7 @@ function finishRec() {
   recBlobUrl = URL.createObjectURL(blob);
   $('recDownload').href = recBlobUrl;
   $('recDownload').download = fileBase() + '.' + (blob.type.includes('mp4') ? 'mp4' : 'webm');
-  $('recResult').hidden = false;
+  $('recResult').hidden = false; addVideoShareButton($('recResult'), $('recDownload'));
   toast(t('room.rec.ready'));
   if (!inCall) showEnded();
 }
@@ -801,3 +801,17 @@ document.addEventListener('langchange', () => {
 });
 
 initLobby();
+
+// Share the generated video file through the device's native share sheet when supported.
+function addVideoShareButton(container, downloadLink) {
+  if (container.querySelector('.video-share-btn')) return;
+  const btn = document.createElement('button'); btn.type = 'button'; btn.className = 'secondary video-share-btn'; btn.textContent = 'Share video';
+  btn.addEventListener('click', async () => {
+    try {
+      const response = await fetch(downloadLink.href); const blob = await response.blob();
+      const file = new File([blob], downloadLink.download || 'ScreenStudio-video.' + (blob.type.includes('mp4') ? 'mp4' : 'webm'), { type: blob.type || 'video/webm' });
+      if (navigator.share && (!navigator.canShare || navigator.canShare({ files: [file] }))) await navigator.share({ files: [file], title: 'ScreenStudio video' });
+      else { downloadLink.click(); alert('Video sharing is not supported here. The video was downloaded so you can attach it in another app.'); }
+    } catch (err) { if (err.name !== 'AbortError') alert('Could not share this video. Try downloading it first.'); }
+  }); container.appendChild(btn);
+}
