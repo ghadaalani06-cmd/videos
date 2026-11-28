@@ -359,7 +359,7 @@ async function finalize() {
   chunks = [];
   if (blobUrl) URL.revokeObjectURL(blobUrl);
   blobUrl = URL.createObjectURL(blob);
-  lastBlob = blob;
+  lastBlob = blob;\n  window.setShareableVideo?.(blob, `recording-${stamp()}.${currentExt}`);
   el.preview.src = blobUrl;
   el.preview.muted = false;
   el.preview.controls = true;
