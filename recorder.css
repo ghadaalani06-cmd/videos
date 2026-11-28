@@ -268,7 +268,7 @@ button.nav:hover { background: var(--deck); border-color: var(--signal); }
 }
 
 /* ===== mode switch ===== */
-.modes { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; padding: 4px; background: var(--midnight); border: 1px solid var(--edge); border-radius: 12px; }
+.modes { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px; padding: 4px; background: var(--midnight); border: 1px solid var(--edge); border-radius: 12px; }
 .modes button { padding: 9px 12px; background: transparent; color: var(--mist); border-radius: 9px; }
 .modes button:hover:not(:disabled) { color: var(--ink); }
 .modes button.on { background: var(--signal); color: #fff; }
